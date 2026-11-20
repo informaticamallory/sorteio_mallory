@@ -1,0 +1,28 @@
+# Python
+backend/.venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/.pytest_cache/
+backend/.env
+
+# Dados do evento (banco, uploads) - nunca versionar
+backend/data/
+*.db
+*.db-wal
+*.db-shm
+sorteio-dados-*.zip
+frontend/tsconfig.tsbuildinfo
+
+# Capturas de tela de testes (podem mostrar nomes reais de colaboradores)
+docs/telas-*/
+
+# Configuracao pessoal do Claude Code
+.claude/settings.local.json
+
+# Node
+frontend/node_modules/
+frontend/dist/
+
+# Sistema
+Thumbs.db
+.DS_Store

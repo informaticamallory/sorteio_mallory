@@ -1,0 +1,18 @@
+# Nada de dados, segredos ou ambientes locais dentro da imagem.
+.git
+.claude
+docs
+scripts
+**/node_modules
+**/__pycache__
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+backend/.venv
+backend/.env
+backend/data
+backend/tests
+backend/.pytest_cache
+**/*.db
+**/*.db-wal
+**/*.db-shm
+**/*.zip

@@ -1,0 +1,9 @@
+Logomarca oficial Mallory usada no cabecalho preto da Recepcao.
+
+  mallory-branca.png    logo completa (com o slogan), branca, fundo transparente.
+                        Extraida de original-laranja.png (so o fundo laranja foi removido).
+  original-laranja.png  arquivo oficial como foi recebido (branco sobre laranja #F16425).
+
+Para trocar: coloque mallory-branca.svg aqui (tem prioridade sobre o PNG e fica mais
+nitido) ou substitua o PNG. Depois gere o build de novo (scripts\iniciar-evento.ps1 ja faz isso).
+Sem nenhum dos arquivos, a Recepcao mostra apenas o texto "Sorteios Mallory".

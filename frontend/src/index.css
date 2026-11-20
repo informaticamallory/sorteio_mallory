@@ -1,0 +1,278 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Sobrescritas em tempo de execucao pelas cores configuradas no evento (telao). */
+    --cor-fundo: #0b1f3a;
+    --cor-primaria: #d4af37;
+    --cor-texto: #f8fafc;
+    --cor-destaque: #1d4ed8;
+  }
+
+  html,
+  body,
+  #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-fundo font-sans text-[14px] text-slate-900 antialiased;
+  }
+
+  h1,
+  h2,
+  h3 {
+    @apply text-slate-900;
+  }
+
+  /* Respeita a preferencia do sistema por menos movimento. */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+}
+
+/*
+ * Componentes base do painel. Padrao: superficies brancas sobre #F7F8FA,
+ * bordas finas #E5E7EB, cantos de 6-8px, sem sombras decorativas, controles
+ * com altura padrao de 36px.
+ */
+@layer components {
+  .campo {
+    @apply h-9 w-full rounded-md border border-slate-300 bg-white px-3 text-sm text-slate-900
+           outline-none transition-colors placeholder:text-slate-400
+           focus:border-marca-500 focus:ring-2 focus:ring-marca-500/20
+           disabled:bg-slate-50 disabled:text-slate-500;
+  }
+
+  textarea.campo {
+    @apply h-auto py-2;
+  }
+
+  select.campo {
+    @apply pr-8;
+  }
+
+  .rotulo {
+    @apply mb-1 block text-[13px] font-medium text-slate-700;
+  }
+
+  .cartao {
+    @apply rounded-lg border border-borda bg-white;
+  }
+
+  /* Titulo de secao dentro de um cartao. */
+  .titulo-secao {
+    @apply text-sm font-semibold text-slate-900;
+  }
+
+  .btn {
+    @apply inline-flex h-9 items-center justify-center gap-2 whitespace-nowrap rounded-md px-3.5
+           text-sm font-medium transition-colors
+           focus:outline-none focus-visible:ring-2 focus-visible:ring-marca-500 focus-visible:ring-offset-1
+           disabled:cursor-not-allowed disabled:opacity-50;
+  }
+
+  .btn-primario {
+    @apply btn bg-marca-600 text-white hover:bg-marca-700;
+  }
+
+  /* Mantido por compatibilidade: mesmo visual do primario. */
+  .btn-ouro {
+    @apply btn-primario;
+  }
+
+  .btn-neutro {
+    @apply btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .btn-perigo {
+    @apply btn bg-rose-600 text-white hover:bg-rose-700;
+  }
+
+  .btn-sutil {
+    @apply btn px-2.5 text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  /* Botao quadrado so com icone. */
+  .btn-icone {
+    @apply inline-flex h-8 w-8 items-center justify-center rounded-md text-slate-500
+           hover:bg-slate-100 hover:text-slate-900 disabled:opacity-40;
+  }
+
+  .etiqueta {
+    @apply inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-xs font-medium;
+  }
+
+  .aba {
+    @apply inline-flex h-8 items-center whitespace-nowrap rounded-md px-3 text-sm font-medium
+           text-slate-600 hover:bg-slate-100 hover:text-slate-900;
+  }
+
+  .aba-ativa {
+    @apply bg-marca-50 text-marca-700 hover:bg-marca-50 hover:text-marca-700;
+  }
+
+  /* Tabelas compactas. :where() mantem a especificidade baixa, para que
+     utilitarios como text-right funcionem nas celulas. */
+  .tabela {
+    @apply w-full text-sm;
+  }
+  .tabela :where(th) {
+    @apply border-b border-borda bg-slate-50 px-3 py-2 text-left text-xs font-medium text-slate-500;
+  }
+  .tabela :where(td) {
+    @apply border-b border-slate-100 px-3 py-2 align-middle;
+  }
+  .tabela :where(tr:last-child td) {
+    @apply border-b-0;
+  }
+
+  /* --- Recepcao publica (identidade Mallory: preto, branco e laranja) --- */
+  .rec-foco {
+    @apply focus:outline-none focus-visible:ring-2 focus-visible:ring-mallory-laranja focus-visible:ring-offset-2;
+  }
+
+  .rec-btn {
+    @apply rec-foco inline-flex h-12 items-center justify-center gap-2 whitespace-nowrap rounded-lg px-5
+           text-base font-semibold transition-colors disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .rec-btn-primario {
+    @apply rec-btn bg-mallory-acao text-white hover:bg-mallory-profundo;
+  }
+
+  .rec-btn-contorno {
+    @apply rec-btn border-2 border-mallory-laranja bg-white text-mallory-preto hover:bg-mallory-claro;
+  }
+
+  .rec-btn-neutro {
+    @apply rec-btn border border-slate-300 bg-white text-slate-700 hover:bg-slate-50;
+  }
+
+  .rec-campo {
+    @apply h-14 w-full rounded-lg border-2 border-slate-200 bg-white px-4 text-xl text-mallory-preto
+           outline-none transition-colors placeholder:text-base placeholder:text-slate-400
+           focus:border-mallory-laranja focus:ring-4 focus:ring-mallory-laranja/15;
+  }
+
+  .rec-painel {
+    @apply rounded-2xl bg-white shadow-suave;
+  }
+}
+
+/* ----------------------------------------------------------- telao */
+.telao {
+  background: var(--cor-fundo);
+  color: var(--cor-texto);
+}
+
+.texto-ouro {
+  color: var(--cor-primaria);
+}
+
+.borda-ouro {
+  border-color: var(--cor-primaria);
+}
+
+/* ------------------------------------------------ bilhete do Cartão da Sorte
+ * Recortes laterais feitos com mascara (furos de verdade): funcionam sobre
+ * qualquer cor de fundo. A camada externa e a borda verde; a interna, o
+ * degrade. O furo da interna e 2px maior, entao a borda acompanha a curva.
+ */
+.bilhete-sorte {
+  --furo: 15px;
+  --borda-bilhete: 2px;
+  position: relative;
+  border-radius: 22px;
+  background: #168a16;
+  -webkit-mask:
+    radial-gradient(circle var(--furo) at 0 50%, transparent calc(var(--furo) - 0.5px), #000 var(--furo)) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo) at 100% 50%, transparent calc(var(--furo) - 0.5px), #000 var(--furo)) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--furo) at 0 50%, transparent calc(var(--furo) - 0.5px), #000 var(--furo)) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo) at 100% 50%, transparent calc(var(--furo) - 0.5px), #000 var(--furo)) right / 51% 100% no-repeat;
+}
+
+.bilhete-sorte__fundo {
+  --furo-interno: calc(var(--furo) + var(--borda-bilhete));
+  position: absolute;
+  inset: var(--borda-bilhete);
+  overflow: hidden;
+  border-radius: 20px;
+  background: linear-gradient(115deg, #b7ed70 0%, #f4ffe5 45%, #e8ffd0 65%, #a5e653 100%);
+  -webkit-mask:
+    radial-gradient(circle var(--furo-interno) at calc(-1 * var(--borda-bilhete)) 50%, transparent calc(var(--furo-interno) - 0.5px), #000 var(--furo-interno)) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo-interno) at calc(100% + var(--borda-bilhete)) 50%, transparent calc(var(--furo-interno) - 0.5px), #000 var(--furo-interno)) right / 51% 100% no-repeat;
+  mask:
+    radial-gradient(circle var(--furo-interno) at calc(-1 * var(--borda-bilhete)) 50%, transparent calc(var(--furo-interno) - 0.5px), #000 var(--furo-interno)) left / 51% 100% no-repeat,
+    radial-gradient(circle var(--furo-interno) at calc(100% + var(--borda-bilhete)) 50%, transparent calc(var(--furo-interno) - 0.5px), #000 var(--furo-interno)) right / 51% 100% no-repeat;
+}
+
+.bilhete-sorte__trevo {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  pointer-events: none;
+  user-select: none;
+}
+.bilhete-sorte__trevo--se { top: 13%; left: 9%; }
+.bilhete-sorte__trevo--sd { top: 11%; right: 10%; }
+.bilhete-sorte__trevo--ie { bottom: 12%; left: 17%; }
+.bilhete-sorte__trevo--id { bottom: 11%; right: 9%; }
+
+@media (min-width: 640px) {
+  .bilhete-sorte { --furo: 18px; }
+  .bilhete-sorte__trevo { width: 28px; height: 28px; }
+}
+
+.bilhete-sorte__numero {
+  color: #e65300;
+  background: linear-gradient(180deg, #ff7a1a 0%, #e65300 55%, #c94a00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  -webkit-text-fill-color: transparent;
+  filter: drop-shadow(0 2px 0 rgba(255, 255, 255, 0.7));
+  font-size: clamp(52px, 14vw, 88px);
+  font-weight: 800;
+  line-height: 1.1;
+  letter-spacing: 1px;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Matricula longa como numero da sorte (modo faixa): cabe sem estourar. */
+.bilhete-sorte__numero--medio {
+  font-size: clamp(40px, 10vw, 68px);
+}
+.bilhete-sorte__numero--longo {
+  font-size: clamp(26px, 7vw, 44px);
+  overflow-wrap: anywhere;
+}
+
+/* Bilhete premiado: dourado (o resultado ja foi revelado no telao). */
+.bilhete-sorte--ouro {
+  background: #b07d0a;
+}
+.bilhete-sorte--ouro .bilhete-sorte__fundo {
+  background: linear-gradient(115deg, #f2c14e 0%, #fff4c8 42%, #f9dc7a 62%, #e2a91f 100%);
+}
+.bilhete-sorte--ouro .bilhete-sorte__numero {
+  color: #c98a00;
+  background: linear-gradient(180deg, #fff1a8 0%, #f5c43b 38%, #d99a00 62%, #8f5d00 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 2px 0 #6b4400) drop-shadow(0 4px 6px rgba(107, 68, 0, 0.35));
+}
+
+/* Rolo de nomes da animacao de sorteio. */
+.rolo-nomes {
+  mask-image: linear-gradient(to bottom, transparent, black 22%, black 78%, transparent);
+  -webkit-mask-image: linear-gradient(to bottom, transparent, black 22%, black 78%, transparent);
+}

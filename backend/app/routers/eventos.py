@@ -1,0 +1,309 @@
+from __future__ import annotations
+
+import re
+
+from fastapi import APIRouter, Depends, HTTPException, Query, status
+from sqlalchemy import func, select
+from sqlalchemy.orm import Session
+
+from ..database import get_db
+from ..deps import evento_atual, exigir_permissao, requer
+from ..permissoes import Permissao
+from ..models import (
+    AuditLog,
+    DisplayState,
+    Draw,
+    Event,
+    ModoSorteio,
+    Participant,
+    Prize,
+    PrizeUnit,
+    RuleChange,
+    StatusSorteio,
+    StatusUnidade,
+    User,
+    utcnow,
+)
+from ..schemas import (
+    EventoConfigIn,
+    EventoIn,
+    EventoOut,
+    FaixaMatriculaOut,
+    MudancaRegraOut,
+    RegrasIn,
+    RegrasOut,
+    ResumoOut,
+)
+from ..security import novo_token_telao
+from ..services.elegibilidade import participantes_elegiveis, resumo_regras
+from ..services.telao import notificar_atualizacao
+
+router = APIRouter(prefix="/api/events", tags=["eventos"])
+
+GERENCIAR = exigir_permissao(Permissao.GERENCIAR_EVENTOS)  # criar eventos (admin)
+CONFIGURAR = exigir_permissao(Permissao.CONFIGURAR_EVENTO)  # configurar o evento (admin e RH)
+DEFINIR_REGRAS = exigir_permissao(Permissao.DEFINIR_REGRAS)
+VISUALIZAR = requer(Permissao.VISUALIZAR_EVENTO)
+# Previa da faixa de matriculas: so quem define as regras (admin e RH).
+PREVIA_REGRAS = requer(Permissao.DEFINIR_REGRAS)
+
+COR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
+CAMPOS_COR = ("cor_fundo", "cor_primaria", "cor_texto", "cor_destaque")
+
+
+@router.get("", response_model=list[EventoOut], dependencies=VISUALIZAR)
+def listar(db: Session = Depends(get_db)) -> list[Event]:
+    return list(db.scalars(select(Event).order_by(Event.criado_em.desc())).all())
+
+
+@router.post("", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
+def criar(dados: EventoIn, db: Session = Depends(get_db), user: User = Depends(GERENCIAR)) -> Event:
+    evento = Event(
+        nome=dados.nome.strip(),
+        empresa_nome=dados.empresa_nome.strip(),
+        demo=dados.demo,
+        telao_token=novo_token_telao(),
+    )
+    db.add(evento)
+    db.flush()
+    db.add(DisplayState(event_id=evento.id, versao=1))
+    db.add(AuditLog(event_id=evento.id, usuario_id=user.id, acao="evento_criado", detalhes={}))
+    db.commit()
+    db.refresh(evento)
+    return evento
+
+
+@router.get("/{event_id}", response_model=EventoOut, dependencies=VISUALIZAR)
+def obter(evento: Event = Depends(evento_atual)) -> Event:
+    return evento
+
+
+@router.patch("/{event_id}", response_model=EventoOut)
+def atualizar_config(
+    dados: EventoConfigIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(CONFIGURAR),
+) -> Event:
+    alterado = dados.model_dump(exclude_unset=True)
+    for campo in CAMPOS_COR:
+        valor = alterado.get(campo)
+        if valor is not None and not COR_RE.match(valor):
+            raise HTTPException(
+                status.HTTP_422_UNPROCESSABLE_ENTITY, f"Cor inválida em {campo}: use formato #RRGGBB"
+            )
+    for campo, valor in alterado.items():
+        setattr(evento, campo, valor)
+    if (
+        evento.autocadastro_inicio is not None
+        and evento.autocadastro_fim is not None
+        and evento.autocadastro_inicio >= evento.autocadastro_fim
+    ):
+        db.rollback()
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "O fim do período de cadastro precisa ser depois do início",
+        )
+    db.add(
+        AuditLog(
+            event_id=evento.id,
+            usuario_id=user.id,
+            acao="evento_configurado",
+            detalhes={"campos": list(alterado.keys())},
+        )
+    )
+    db.commit()
+    db.refresh(evento)
+    notificar_atualizacao(db, evento)
+    return evento
+
+
+@router.post("/{event_id}/telao/novo-token", response_model=EventoOut)
+def regerar_token(
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(CONFIGURAR),
+) -> Event:
+    evento.telao_token = novo_token_telao()
+    db.add(AuditLog(event_id=evento.id, usuario_id=user.id, acao="telao_token_regerado", detalhes={}))
+    db.commit()
+    db.refresh(evento)
+    return evento
+
+
+# ------------------------------------------------------------------ regras
+@router.get("/{event_id}/regras", response_model=RegrasOut, dependencies=VISUALIZAR)
+def obter_regras(evento: Event = Depends(evento_atual)) -> Event:
+    return evento
+
+
+@router.get("/{event_id}/regras/resumo", dependencies=VISUALIZAR)
+def resumo_das_regras(
+    evento: Event = Depends(evento_atual), db: Session = Depends(get_db)
+) -> dict:
+    total_sorteios = db.scalar(
+        select(func.count(Draw.id)).where(Draw.event_id == evento.id)
+    ) or 0
+    return {
+        "itens": resumo_regras(evento),
+        "regras_participacao": evento.regras_participacao,
+        "confirmadas_em": evento.regras_confirmadas_em,
+        "primeiro_sorteio_realizado": total_sorteios > 0,
+        "elegiveis_agora": len(participantes_elegiveis(db, evento)),
+    }
+
+
+@router.patch("/{event_id}/regras", response_model=RegrasOut)
+def atualizar_regras(
+    dados: RegrasIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(DEFINIR_REGRAS),
+) -> Event:
+    houve_sorteio = (
+        db.scalar(select(func.count(Draw.id)).where(Draw.event_id == evento.id)) or 0
+    ) > 0
+    alterado = dados.model_dump(exclude_unset=True)
+    # Modo faixa de matriculas: a faixa resultante precisa existir e ser valida.
+    modo = alterado.get("modo_sorteio", evento.modo_sorteio)
+    inicio = alterado.get("matricula_faixa_inicio", evento.matricula_faixa_inicio)
+    fim = alterado.get("matricula_faixa_fim", evento.matricula_faixa_fim)
+    if modo == ModoSorteio.FAIXA_MATRICULA.value and (inicio is None or fim is None):
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "Informe a matrícula inicial e a final para sortear por faixa de matrículas.",
+        )
+    if inicio is not None and fim is not None and inicio > fim:
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY,
+            "A matrícula inicial da faixa precisa ser menor ou igual à final.",
+        )
+    for campo, valor in alterado.items():
+        anterior = getattr(evento, campo)
+        if anterior == valor:
+            continue
+        setattr(evento, campo, valor)
+        db.add(
+            RuleChange(
+                event_id=evento.id,
+                campo=campo,
+                valor_anterior=str(anterior),
+                valor_novo=str(valor),
+                apos_primeiro_sorteio=houve_sorteio,
+                usuario_id=user.id,
+            )
+        )
+    db.commit()
+    db.refresh(evento)
+    return evento
+
+
+@router.get("/{event_id}/regras/faixa-matricula", response_model=FaixaMatriculaOut, dependencies=PREVIA_REGRAS)
+def previa_faixa_matricula(
+    inicio: int | None = Query(None, ge=0, le=999_999_999),
+    fim: int | None = Query(None, ge=0, le=999_999_999),
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+) -> FaixaMatriculaOut:
+    """Quantos participantes ativos ficam dentro e fora da faixa (sem aplicar presenca)."""
+    ativos = db.scalars(
+        select(Participant.matricula_normalizada).where(
+            Participant.event_id == evento.id, Participant.participando.is_(True)
+        )
+    ).all()
+    numeros = [int(m) for m in ativos if (m or "").isdigit()]
+    dentro = (
+        sum(1 for n in numeros if inicio <= n <= fim)
+        if inicio is not None and fim is not None and inicio <= fim
+        else 0
+    )
+    return FaixaMatriculaOut(
+        inicio=inicio,
+        fim=fim,
+        participantes_ativos=len(ativos),
+        dentro_da_faixa=dentro,
+        fora_da_faixa=len(numeros) - dentro,
+        matricula_nao_numerica=len(ativos) - len(numeros),
+        menor_matricula=min(numeros) if numeros else None,
+        maior_matricula=max(numeros) if numeros else None,
+    )
+
+
+@router.post("/{event_id}/regras/confirmar", response_model=RegrasOut)
+def confirmar_regras(
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(DEFINIR_REGRAS),
+) -> Event:
+    evento.regras_confirmadas_em = utcnow()
+    db.add(AuditLog(event_id=evento.id, usuario_id=user.id, acao="regras_confirmadas", detalhes={}))
+    db.commit()
+    db.refresh(evento)
+    return evento
+
+
+@router.get(
+    "/{event_id}/regras/historico", response_model=list[MudancaRegraOut], dependencies=VISUALIZAR
+)
+def historico_regras(
+    evento: Event = Depends(evento_atual), db: Session = Depends(get_db)
+) -> list[MudancaRegraOut]:
+    linhas = db.scalars(
+        select(RuleChange)
+        .where(RuleChange.event_id == evento.id)
+        .order_by(RuleChange.criado_em.desc())
+    ).all()
+    return [
+        MudancaRegraOut(
+            id=linha.id,
+            campo=linha.campo,
+            valor_anterior=linha.valor_anterior,
+            valor_novo=linha.valor_novo,
+            apos_primeiro_sorteio=linha.apos_primeiro_sorteio,
+            usuario_nome=linha.usuario.nome if linha.usuario else "",
+            criado_em=linha.criado_em,
+        )
+        for linha in linhas
+    ]
+
+
+# ------------------------------------------------------------------ resumo
+@router.get("/{event_id}/resumo", response_model=ResumoOut, dependencies=VISUALIZAR)
+def resumo(evento: Event = Depends(evento_atual), db: Session = Depends(get_db)) -> ResumoOut:
+    total = db.scalar(
+        select(func.count(Participant.id)).where(Participant.event_id == evento.id)
+    ) or 0
+    presentes = db.scalar(
+        select(func.count(Participant.id)).where(
+            Participant.event_id == evento.id, Participant.presente.is_(True)
+        )
+    ) or 0
+    premios_total = db.scalar(
+        select(func.count(Prize.id)).where(Prize.event_id == evento.id)
+    ) or 0
+
+    unidades = db.execute(
+        select(PrizeUnit.status, func.count(PrizeUnit.id))
+        .join(Prize, PrizeUnit.prize_id == Prize.id)
+        .where(Prize.event_id == evento.id)
+        .group_by(PrizeUnit.status)
+    ).all()
+    por_status = {status_: quantidade for status_, quantidade in unidades}
+
+    anulados = db.scalar(
+        select(func.count(Draw.id)).where(
+            Draw.event_id == evento.id, Draw.status == StatusSorteio.ANULADO.value
+        )
+    ) or 0
+
+    return ResumoOut(
+        participantes_total=total,
+        participantes_presentes=presentes,
+        participantes_elegiveis=len(participantes_elegiveis(db, evento)),
+        premios_total=premios_total,
+        unidades_total=sum(por_status.values()),
+        unidades_disponiveis=por_status.get(StatusUnidade.DISPONIVEL.value, 0),
+        unidades_sorteadas=por_status.get(StatusUnidade.SORTEADO.value, 0),
+        unidades_entregues=por_status.get(StatusUnidade.ENTREGUE.value, 0),
+        sorteios_anulados=anulados,
+    )
