@@ -18,9 +18,12 @@ RUN npm run build
 
 # ---------------------------------------------------------------- backend
 FROM python:3.13-slim-bookworm
+# EXIGIR_VOLUME_DADOS: sem volume montado em /data o sistema NAO sobe (em vez
+# de subir com banco vazio e perder tudo no proximo deploy).
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    DATA_DIR=/data
+    DATA_DIR=/data \
+    EXIGIR_VOLUME_DADOS=1
 
 WORKDIR /app/backend
 COPY backend/requirements.txt ./

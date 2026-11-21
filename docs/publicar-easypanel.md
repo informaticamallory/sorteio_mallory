@@ -8,6 +8,9 @@ próprio Easypanel e todos os dados numa pasta do servidor montada em `/data`.
 >    tentativas de login ficam na memória do processo. Duas réplicas = telão sem atualizar.
 >    Deixe *zero downtime* desligado: ele sobe o contêiner novo antes de derrubar o antigo.
 > 2. **`/data` sempre montado numa pasta do servidor.** Sem isso, cada deploy apaga o banco.
+>    Por segurança, o contêiner **se recusa a iniciar** sem essa montagem e o log mostra
+>    `/data nao e um volume persistente`. Nesse caso, configure a montagem (passo 3.5) e
+>    implante de novo.
 > 3. **Levar a `chave-identificacao.key`.** Sem ela, o autocadastro não reconhece nenhum CPF
 >    já importado (seria preciso reimportar a planilha).
 

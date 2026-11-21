@@ -13,7 +13,7 @@ from sqlalchemy import select
 from sqlalchemy.exc import OperationalError
 
 from . import bus
-from .config import BASE_DIR, arquivo_sqlite, avisos_de_ambiente, settings
+from .config import BASE_DIR, arquivo_sqlite, avisos_de_ambiente, exigir_volume_de_dados, settings
 from .database import session_scope
 from .migracoes import aplicar_migracoes
 from .models import Papel, User
@@ -60,6 +60,7 @@ def garantir_organizador() -> None:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):  # noqa: ANN201
+    exigir_volume_de_dados()
     migracao = aplicar_migracoes()
     garantir_organizador()
     bus.registrar_loop(asyncio.get_running_loop())
