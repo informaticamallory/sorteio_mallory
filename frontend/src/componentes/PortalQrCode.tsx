@@ -54,9 +54,11 @@ export default function PortalQrCode({ eventoId, eventoNome }: { eventoId: numbe
     const estilo = doc.createElement('style')
     estilo.textContent =
       'body{font-family:Arial,sans-serif;text-align:center;padding:40px;color:#111}' +
-      'h1{font-size:28px;margin:0 0 4px}p{margin:6px 0;color:#444}img{width:420px;height:420px;margin:24px auto}' +
-      '.faixa{height:8px;background:#F16425;border-radius:4px;margin:0 auto 24px;width:120px}' +
-      'code{font-size:14px;word-break:break-all}'
+      'h1{font-size:28px;margin:0 0 4px}p{margin:6px 0;color:#444}' +
+      // display:block centraliza a imagem sozinha na linha (inline ela dividia a
+      // linha com o texto seguinte e ficava deslocada).
+      'img{display:block;width:420px;height:420px;margin:32px auto 0}' +
+      '.faixa{height:8px;background:#F16425;border-radius:4px;margin:0 auto 24px;width:120px}'
     doc.head.appendChild(estilo)
     const faixa = doc.createElement('div')
     faixa.className = 'faixa'
@@ -69,9 +71,9 @@ export default function PortalQrCode({ eventoId, eventoNome }: { eventoId: numbe
     const imagem = doc.createElement('img')
     imagem.src = qr
     imagem.alt = 'QR Code do cadastro'
-    const link = doc.createElement('code')
-    link.textContent = situacao.url_cadastro
-    doc.body.append(faixa, titulo, nome, instrucao, imagem, link)
+    // So o QR Code: o link impresso nao e exibido (quem quiser o endereco usa
+    // "Copiar link" no painel).
+    doc.body.append(faixa, titulo, nome, instrucao, imagem)
     imagem.onload = () => {
       janela.focus()
       janela.print()
