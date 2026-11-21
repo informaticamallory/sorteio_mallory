@@ -51,6 +51,7 @@ def test_fluxo_completo_do_evento(cliente, auth):
     E = f"/api/events/{eid}"
     _ok(cliente.patch(E, json={
         "autocadastro_ativo": True, "autocadastro_confirma_presenca": True,
+        "recepcao_publica_ativa": True,  # abre o check-in sem login
         "carrossel_segundos": 5, "duracao_animacao_ms": 1000,
     }, headers=admin))
     _ok(cliente.patch(f"{E}/regras", json={"exige_presenca": True, "permite_multiplas_vitorias": False}, headers=admin))

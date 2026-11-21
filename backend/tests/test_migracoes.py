@@ -145,6 +145,7 @@ def _foto_v1(caminho: Path) -> dict:
             "autocadastro_confirma_presenca", "carrossel_segundos",
             "autocadastro_inicio", "autocadastro_fim",
             "modo_sorteio", "matricula_faixa_inicio", "matricula_faixa_fim",
+            "recepcao_publica_ativa",
         },
         "display_states": {
             "carrossel_bloco_id", "carrossel_indice", "carrossel_desde", "carrossel_duracao_s",

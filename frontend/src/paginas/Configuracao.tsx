@@ -33,6 +33,7 @@ type Formulario = Pick<
   | 'duracao_animacao_ms'
   | 'fuso_horario'
   | 'carrossel_segundos'
+  | 'recepcao_publica_ativa'
   | 'autocadastro_ativo'
   | 'autocadastro_inicio'
   | 'autocadastro_fim'
@@ -106,6 +107,7 @@ export default function Configuracao() {
       duracao_animacao_ms: evento.duracao_animacao_ms,
       fuso_horario: evento.fuso_horario,
       carrossel_segundos: evento.carrossel_segundos,
+      recepcao_publica_ativa: evento.recepcao_publica_ativa,
       autocadastro_ativo: evento.autocadastro_ativo,
       autocadastro_inicio: evento.autocadastro_inicio,
       autocadastro_fim: evento.autocadastro_fim,
@@ -321,6 +323,33 @@ export default function Configuracao() {
             <span className="text-sm text-slate-700">Reduzir animações (acessibilidade)</span>
           </label>
         </div>
+      </section>
+
+      <section className="cartao p-5">
+        <h2 className="mb-1 font-semibold text-slate-900">Recepção sem login (check-in e consulta)</h2>
+        <p className="mb-4 text-sm text-slate-500">
+          Libera o botão <strong>Recepção</strong> da tela inicial: qualquer aparelho confirma a presença
+          pela matrícula e consulta o número do sorteio, sem senha. Deixe fechada até o dia do evento, para
+          ninguém fazer check-in antes da hora. Fechada, a equipe logada continua marcando presença em{' '}
+          <strong>Credenciamento</strong>.
+        </p>
+        <label className="flex items-center gap-3 rounded-lg border border-slate-200 px-3 py-2 sm:w-fit">
+          <input
+            type="checkbox"
+            className="h-4 w-4 accent-marca-800"
+            checked={form.recepcao_publica_ativa}
+            onChange={(e) => atualizar({ recepcao_publica_ativa: e.target.checked })}
+          />
+          <span className="text-sm text-slate-700">Recepção aberta</span>
+          <span
+            className={`etiqueta ${
+              evento.recepcao_publica_ativa ? 'bg-emerald-50 text-emerald-700' : 'bg-slate-100 text-slate-600'
+            }`}
+          >
+            {evento.recepcao_publica_ativa ? 'Aberta agora' : 'Fechada agora'}
+          </span>
+        </label>
+        <p className="mt-2 text-xs text-slate-500">Salve a configuração para aplicar.</p>
       </section>
 
       <section className="cartao p-5">

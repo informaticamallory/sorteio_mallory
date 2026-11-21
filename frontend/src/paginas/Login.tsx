@@ -1,5 +1,6 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { requisitar } from '../api'
 import { destinoInicial, useAuth } from '../auth'
 import Icone from '../componentes/Icone'
 import {
@@ -14,7 +15,9 @@ import { Aviso } from '../componentes/ui'
 
 /**
  * Tela inicial, na identidade Mallory: Recepção (sem senha, qualquer aparelho)
- * e o acesso da equipe com usuário e senha.
+ * e o acesso da equipe com usuário e senha. A Recepção só aparece quando algum
+ * evento está com ela aberta (Configuração); o servidor também recusa o
+ * check-in e a consulta enquanto ela estiver fechada.
  */
 export default function Login() {
   const { entrar, usuario } = useAuth()
@@ -23,6 +26,13 @@ export default function Login() {
   const [senha, setSenha] = useState('')
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
+  const [recepcaoAberta, setRecepcaoAberta] = useState(false)
+
+  useEffect(() => {
+    requisitar<unknown[]>('/api/recepcao/eventos', { autenticado: false })
+      .then((eventos) => setRecepcaoAberta(eventos.length > 0))
+      .catch(() => setRecepcaoAberta(false))
+  }, [])
 
   if (usuario) return <Navigate to={destinoInicial(usuario)} replace />
 
@@ -47,31 +57,33 @@ export default function Login() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         <BoasVindasMallory prefixo="Bem-vindo aos Sorteios" subtitulo="Escolha como deseja acessar o sistema." />
 
-        <div className="mt-6 grid gap-5 lg:grid-cols-2">
-          {/* Recepção: sem senha, em qualquer aparelho. */}
-          <CartaoAcao
-            variante="destaque"
-            icone="cracha"
-            titulo="Recepção"
-            descricao="Check-in e consulta do número do sorteio. Não precisa de senha."
-            acao="Acessar Recepção"
-            para="/recepcao"
-          >
-            <ul className="space-y-3 text-base text-white">
-              {[
-                'Confirmar a presença pela matrícula',
-                'Consultar o número do sorteio pelo nome ou matrícula',
-                'Ver se o colaborador já foi sorteado e se retirou o prêmio',
-              ].map((item) => (
-                <li key={item} className="flex items-start gap-3">
-                  <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
-                    <Icone nome="check" className="h-4 w-4" />
-                  </span>
-                  {item}
-                </li>
-              ))}
-            </ul>
-          </CartaoAcao>
+        <div className={`mt-6 grid gap-5 ${recepcaoAberta ? 'lg:grid-cols-2' : 'mx-auto max-w-xl'}`}>
+          {/* Recepção: sem senha, em qualquer aparelho (só com ela aberta). */}
+          {recepcaoAberta && (
+            <CartaoAcao
+              variante="destaque"
+              icone="cracha"
+              titulo="Recepção"
+              descricao="Check-in e consulta do número do sorteio. Não precisa de senha."
+              acao="Acessar Recepção"
+              para="/recepcao"
+            >
+              <ul className="space-y-3 text-base text-white">
+                {[
+                  'Confirmar a presença pela matrícula',
+                  'Consultar o número do sorteio pelo nome ou matrícula',
+                  'Ver se o colaborador já foi sorteado e se retirou o prêmio',
+                ].map((item) => (
+                  <li key={item} className="flex items-start gap-3">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-white/20">
+                      <Icone nome="check" className="h-4 w-4" />
+                    </span>
+                    {item}
+                  </li>
+                ))}
+              </ul>
+            </CartaoAcao>
+          )}
 
           <MolduraCartao destaque={false}>
             <TopoCartao

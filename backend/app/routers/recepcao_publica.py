@@ -37,12 +37,20 @@ from ..texto import contem, normalizar_busca, normalizar_matricula
 router = APIRouter(prefix="/api/recepcao", tags=["recepcao"])
 
 MENSAGEM_NAO_ENCONTRADA = "Matrícula não encontrada neste evento."
+MENSAGEM_FECHADA = "A Recepção deste evento ainda não foi aberta pela organização."
 
 
 def _evento(db: Session, event_id: int) -> Event:
+    """Evento com a Recepcao aberta. Fechada: nada de check-in nem consulta.
+
+    A chave fica em Configuracao (admin e organizador). A equipe logada
+    continua marcando presenca pelo Credenciamento.
+    """
     evento = db.get(Event, event_id)
     if evento is None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Evento não encontrado")
+    if not evento.recepcao_publica_ativa:
+        raise HTTPException(status.HTTP_403_FORBIDDEN, MENSAGEM_FECHADA)
     return evento
 
 
@@ -82,8 +90,17 @@ def _atendidos(db: Session, evento: Event, participantes: list[Participant]) -> 
 
 @router.get("/eventos", response_model=list[EventoRecepcaoOut])
 def eventos(db: Session = Depends(get_db)) -> list[Event]:
-    """Eventos para a recepcao escolher (reais primeiro, mais recentes antes)."""
-    return list(db.scalars(select(Event).order_by(Event.demo, Event.criado_em.desc())).all())
+    """Eventos com a Recepcao aberta (reais primeiro, mais recentes antes).
+
+    Lista vazia: a tela inicial esconde o acesso a Recepcao.
+    """
+    return list(
+        db.scalars(
+            select(Event)
+            .where(Event.recepcao_publica_ativa.is_(True))
+            .order_by(Event.demo, Event.criado_em.desc())
+        ).all()
+    )
 
 
 @router.post("/{event_id}/localizar", response_model=AtendidoOut)

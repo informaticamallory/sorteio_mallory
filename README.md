@@ -256,6 +256,7 @@ arquivo gerado — no SQLite, colunas com FK devem ser adicionadas com `ALTER TA
 | `0009` | Gerenciador de Blocos: `blocos_sorteio.descricao` (opcional, vazia nos blocos existentes). Só acréscimo. |
 | `0010` | Perfis: `users.papel` aceita `ENTREGAS` (CHECK trocado como na 0007); contas `ORGANIZADOR` existentes viram `ENTREGAS` (sessão encerrada); `users.setor` e `users.pode_sortear`. O downgrade devolve `ENTREGAS` para `ORGANIZADOR`. |
 | `0011` | Modo de sorteio por evento: `events.modo_sorteio` (`numero_sorte` nos eventos existentes — nada muda), `events.matricula_faixa_inicio` e `events.matricula_faixa_fim` (vazias). |
+| `0012` | `events.recepcao_publica_ativa`: Recepção sem login (check-in e consulta) só com a chave ligada. Desligada, inclusive nos eventos existentes. |
 
 ### Histórico com pesquisa
 
@@ -330,8 +331,14 @@ ordem dos sorteios, sem matrícula nem pulseira — é a base do carrossel.
 
 ### Recepção: check-in e número do sorteio
 
-A tela inicial tem o botão **Recepção** e, abaixo, usuário e senha para a equipe. A Recepção
-(`/recepcao`) **não exige login, em nenhum aparelho**, e tem dois botões: **Check-in**
+A Recepção sem login nasce **fechada** em todo evento. O admin ou o organizador abre em
+**Configuração → Recepção sem login → Recepção aberta** (no dia do evento) e fecha do mesmo
+jeito. Fechada, a tela inicial não mostra o botão **Recepção** e o servidor recusa check-in e
+consulta (403); a equipe logada continua marcando presença em **Credenciamento**. Abrir e fechar
+fica na auditoria (`evento_configurado`).
+
+Com ela aberta, a tela inicial tem o botão **Recepção** e, ao lado, usuário e senha para a
+equipe. A Recepção (`/recepcao`) **não exige login, em nenhum aparelho**, e tem dois botões: **Check-in**
 (matrícula → confere matrícula, nome e número → **Confirmar check-in**) e **Consultar**
 (nome ou matrícula). Com mais de um evento cadastrado, pergunta qual (e lembra no aparelho).
 Telas em `docs/telas-recepcao-mallory/` (desktop, tablet e celular).

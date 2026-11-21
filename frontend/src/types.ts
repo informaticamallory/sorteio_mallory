@@ -318,6 +318,8 @@ export interface Evento {
   matricula_faixa_fim: number | null
   regras_confirmadas_em: string | null
   capacidade_bloco_padrao: number
+  /** Recepção sem login (/recepcao) aberta: check-in e consulta. */
+  recepcao_publica_ativa: boolean
   autocadastro_ativo: boolean
   autocadastro_confirma_presenca: boolean
   autocadastro_inicio: string | null

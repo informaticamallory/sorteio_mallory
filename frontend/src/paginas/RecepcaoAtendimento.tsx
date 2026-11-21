@@ -95,7 +95,11 @@ export default function RecepcaoAtendimento() {
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
         {!eventos && !erro && <Carregando texto="Carregando..." />}
-        {eventos && eventos.length === 0 && <Aviso tipo="atencao">Nenhum evento cadastrado.</Aviso>}
+        {eventos && eventos.length === 0 && (
+          <Aviso tipo="atencao">
+            A Recepção ainda não foi aberta pela organização. Ela é liberada em Configuração, no dia do evento.
+          </Aviso>
+        )}
 
         {eventos && eventos.length > 1 && !evento && (
           <section className="rec-painel mx-auto max-w-2xl p-6 sm:p-8">

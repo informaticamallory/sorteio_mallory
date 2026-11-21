@@ -173,6 +173,7 @@ class EventoConfigIn(BaseModel):
     reduzir_animacoes: bool | None = None
     duracao_animacao_ms: int | None = Field(default=None, ge=1000, le=30000)
     fuso_horario: str | None = None
+    recepcao_publica_ativa: bool | None = None
     autocadastro_ativo: bool | None = None
     autocadastro_confirma_presenca: bool | None = None
     # Periodo do cadastro pelo QR Code. Enviar null remove o limite.
@@ -266,6 +267,7 @@ class EventoOut(ORMModel):
     matricula_faixa_fim: int | None = None
     regras_confirmadas_em: datetime | None
     capacidade_bloco_padrao: int = 25
+    recepcao_publica_ativa: bool = False
     autocadastro_ativo: bool = False
     autocadastro_confirma_presenca: bool = True
     autocadastro_inicio: datetime | None = None

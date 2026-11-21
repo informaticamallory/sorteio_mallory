@@ -160,6 +160,10 @@ class Event(Base):
     # Unidades por bloco na distribuicao automatica.
     capacidade_bloco_padrao: Mapped[int] = mapped_column(Integer, default=25, server_default="25")
 
+    # Recepcao sem login (/recepcao: check-in pela matricula e consulta do
+    # numero). Desligada por padrao: o admin ou o organizador abre no dia.
+    recepcao_publica_ativa: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
     # Autocadastro pelo celular: desligado por padrao (o admin decide quando abrir).
     autocadastro_ativo: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
     # Periodo opcional do cadastro pelo QR Code (UTC). NULL = sem limite.

@@ -81,6 +81,9 @@ def montar_evento(
     quantidade_premio: int = 1,
     permite_multiplas_vitorias: bool = False,
     exige_presenca: bool = True,
+    # Em producao a Recepcao sem login nasce fechada; nos testes ela vem aberta
+    # para exercitar o check-in. test_recepcao_aberta.py cobre a chave desligada.
+    recepcao_publica: bool = True,
 ) -> tuple[int, list[int], list[int]]:
     """Cria um evento completo direto no banco. Devolve (event_id, ids_participantes, ids_unidades)."""
     from app.database import session_scope
@@ -93,6 +96,7 @@ def montar_evento(
             telao_token=novo_token_telao(),
             permite_multiplas_vitorias=permite_multiplas_vitorias,
             exige_presenca=exige_presenca,
+            recepcao_publica_ativa=recepcao_publica,
             duracao_animacao_ms=1000,
         )
         db.add(evento)
