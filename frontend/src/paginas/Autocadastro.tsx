@@ -22,6 +22,33 @@ function hojeIso(): string {
   return new Date(agora.getTime() - agora.getTimezoneOffset() * 60000).toISOString().slice(0, 10)
 }
 
+/** Digitação da data: "15031990" -> "15/03/1990" (as barras entram sozinhas). */
+export function mascararData(texto: string): string {
+  const d = texto.replace(/\D/g, '').slice(0, 8)
+  if (d.length <= 2) return d
+  if (d.length <= 4) return `${d.slice(0, 2)}/${d.slice(2)}`
+  return `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`
+}
+
+/**
+ * "dd/mm/aaaa" -> "aaaa-mm-dd" (formato que o servidor espera), ou null se a
+ * data estiver incompleta, nao existir (31/02) ou estiver fora de 1900..hoje.
+ */
+export function dataParaIso(texto: string): string | null {
+  const m = /^(\d{2})\/(\d{2})\/(\d{4})$/.exec(texto)
+  if (!m) return null
+  const [, dia, mes, ano] = m
+  const data = new Date(Date.UTC(Number(ano), Number(mes) - 1, Number(dia)))
+  if (
+    data.getUTCFullYear() !== Number(ano) ||
+    data.getUTCMonth() !== Number(mes) - 1 ||
+    data.getUTCDate() !== Number(dia)
+  )
+    return null
+  const iso = `${ano}-${mes}-${dia}`
+  return iso >= '1900-01-01' && iso <= hojeIso() ? iso : null
+}
+
 /**
  * Página pública do QR Code: o colaborador se cadastra pelo próprio celular.
  * /evento/:eventId/cadastro (QR Code), /cadastro/:eventId e /cadastro (lista).
@@ -167,6 +194,7 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
   const [concluido, setConcluido] = useState<AutocadastroConcluido | null>(null)
 
   const base = `/api/autocadastro/${evento.id}`
+  const nascimentoIso = dataParaIso(nascimento)
 
   function irPara(proximo: Passo) {
     setErro('')
@@ -197,7 +225,7 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
     executar(async () => {
       const dados = await requisitar<Identificacao>(`${base}/identificar`, {
         metodo: 'POST',
-        corpo: { matricula: matricula.trim(), nascimento, cpf5: cpf5.trim() },
+        corpo: { matricula: matricula.trim(), nascimento: nascimentoIso, cpf5: cpf5.trim() },
         autenticado: false,
       })
       // Nascimento e CPF ficam só na memória desta tela até confirmar o cadastro
@@ -214,7 +242,7 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
         `${base}/concluir`,
         {
           passe: identificacao.passe,
-          nascimento,
+          nascimento: nascimentoIso ?? '',
           cpf5: cpf5.trim(),
           remover_foto: removerFoto && !foto ? 'true' : 'false',
         },
@@ -227,7 +255,9 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
       irPara('pronto')
     })
 
-  const identificacaoCompleta = !!matricula.trim() && !!nascimento && /^\d{5}$/.test(cpf5)
+  const identificacaoCompleta = !!matricula.trim() && nascimentoIso !== null && /^\d{5}$/.test(cpf5)
+  // Data com 10 caracteres que nao existe (31/02, ano futuro): avisa no campo.
+  const dataInvalida = nascimento.length === 10 && nascimentoIso === null
   const fotoAtual = identificacao?.foto_url && !removerFoto ? identificacao.foto_url : null
 
   return (
@@ -271,10 +301,12 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
                 id="matricula"
                 className={CAMPO}
                 autoComplete="username"
-                autoCapitalize="characters"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={20}
                 placeholder="Digite sua matrícula"
                 value={matricula}
-                onChange={(e) => setMatricula(e.target.value)}
+                onChange={(e) => setMatricula(e.target.value.replace(/\D/g, ''))}
                 autoFocus
                 required
               />
@@ -286,14 +318,23 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
               </label>
               <input
                 id="nascimento"
-                type="date"
+                type="text"
+                inputMode="numeric"
+                autoComplete="bday"
                 className={CAMPO}
-                min="1900-01-01"
-                max={hojeIso()}
+                placeholder="dd/mm/aaaa"
+                maxLength={10}
                 value={nascimento}
-                onChange={(e) => setNascimento(e.target.value)}
+                onChange={(e) => setNascimento(mascararData(e.target.value))}
+                aria-invalid={dataInvalida}
+                aria-describedby={dataInvalida ? 'nascimento-erro' : undefined}
                 required
               />
+              {dataInvalida && (
+                <p id="nascimento-erro" className="mt-1 text-sm font-medium text-red-700">
+                  Data inválida. Confira o dia, o mês e o ano.
+                </p>
+              )}
             </div>
             <div>
               <label className={ROTULO} htmlFor="cpf5">
