@@ -368,6 +368,19 @@ def finalizar(
     return _bloco_atual(db, evento, bloco)
 
 
+@router.post("/{bloco_id}/reabrir", response_model=BlocoOut)
+def reabrir(
+    bloco_id: int,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(CONDUZIR),
+) -> BlocoOut:
+    """Bloco finalizado com premios sem sorteio volta a pausado (Continuar)."""
+    bloco = _buscar(db, evento, bloco_id)
+    _executar(db, lambda: servico.reabrir_bloco(db, evento, bloco, user))
+    return _bloco_atual(db, evento, bloco)
+
+
 # "premiados" e nao "ganhadores": o teste original garante que nenhuma rota
 # tenha "ganhador" no caminho, para nao existir forma de editar o vencedor.
 # Esta rota e somente leitura.

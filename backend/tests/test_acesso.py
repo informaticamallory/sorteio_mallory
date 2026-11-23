@@ -84,6 +84,7 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("POST", f"{E}/blocos/{{bloco_id}}/iniciar"): {A, S},
     ("POST", f"{E}/blocos/{{bloco_id}}/pausar"): {A, S},
     ("POST", f"{E}/blocos/{{bloco_id}}/finalizar"): {A, S},
+    ("POST", f"{E}/blocos/{{bloco_id}}/reabrir"): {A, S},
     ("GET", f"{E}/blocos/{{bloco_id}}/premiados"): {A, S, O},
     # sorteio e telao
     ("GET", f"{E}/sorteio/elegiveis"): {A, S},

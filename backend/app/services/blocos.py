@@ -737,6 +737,40 @@ def finalizar_bloco(
     return bloco
 
 
+def reabrir_bloco(db: Session, evento: Event, bloco: BlocoSorteio, usuario: User) -> BlocoSorteio:
+    """Volta um bloco FINALIZADO que ainda tem premios sem sorteio para PAUSADO.
+
+    Nada do que ja foi sorteado muda. Quem finalizou e quando ficam na
+    auditoria (bloco_finalizado e bloco_reaberto); o bloco volta a ser
+    conduzido normalmente (Continuar). Premios que ja foram para um bloco de
+    remanescentes nao voltam: nesse caso nao ha o que reabrir.
+    """
+    if bloco.status == StatusBloco.PAUSADO.value:
+        return bloco
+    if bloco.status != StatusBloco.FINALIZADO.value:
+        raise RegraDeNegocio(f"O {bloco.nome} não está finalizado.")
+    restantes = progresso_por_bloco(db, evento.id)[bloco.id].restantes
+    if restantes == 0:
+        raise RegraDeNegocio(
+            f"O {bloco.nome} não tem prêmios sem sorteio. Não há o que reabrir."
+        )
+    anterior = {
+        "finalizado_em": bloco.finalizado_em.isoformat() if bloco.finalizado_em else None,
+        "finalizado_por_id": bloco.finalizado_por_id,
+    }
+    bloco.status = StatusBloco.PAUSADO.value
+    bloco.finalizado_em = None
+    bloco.finalizado_por_id = None
+    _auditar(
+        db,
+        evento,
+        usuario,
+        "bloco_reaberto",
+        {"bloco_id": bloco.id, "numero": bloco.numero, "restantes": restantes, **anterior},
+    )
+    return bloco
+
+
 # ------------------------------------------------------------------ resultados
 def ganhadores_do_bloco(db: Session, bloco: BlocoSorteio) -> list[dict]:
     """Resultados validos do bloco na ordem dos sorteios (base do carrossel da Fase 7).

@@ -64,6 +64,7 @@ export default function Blocos() {
   const [excluindo, setExcluindo] = useState<Bloco | null>(null)
   const [detalhe, setDetalhe] = useState<BlocoDetalhe | null>(null)
   const [finalizando, setFinalizando] = useState<Bloco | null>(null)
+  const [reabrindo, setReabrindo] = useState<Bloco | null>(null)
   const [organizando, setOrganizando] = useState(false)
 
   const carregar = useCallback(async () => {
@@ -346,6 +347,17 @@ export default function Blocos() {
                     Finalizar
                   </button>
                 )}
+                {conduz && bloco.status === 'FINALIZADO' && bloco.restantes > 0 && (
+                  <button
+                    type="button"
+                    className="btn-neutro px-3 py-1.5"
+                    disabled={ocupado}
+                    title="Volta o bloco para pausado para sortear os prêmios que faltam"
+                    onClick={() => setReabrindo(bloco)}
+                  >
+                    Reabrir
+                  </button>
+                )}
                 {configura && excluivel && (
                   <button
                     type="button"
@@ -420,6 +432,44 @@ export default function Blocos() {
               >
                 <Icone nome="excluir" className="h-4 w-4" />
                 Excluir bloco
+              </button>
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      <Modal titulo="Reabrir bloco" aberto={reabrindo !== null} aoFechar={() => setReabrindo(null)}>
+        {reabrindo && (
+          <div className="space-y-4">
+            <p className="font-semibold text-slate-900">Reabrir {reabrindo.nome}?</p>
+            <dl className="grid grid-cols-2 gap-2 rounded-lg bg-slate-50 p-3 text-sm">
+              <dt className="text-slate-500">Já sorteados</dt>
+              <dd className="font-medium text-slate-900">{reabrindo.sorteadas}</dd>
+              <dt className="text-slate-500">Prêmios que faltam</dt>
+              <dd className="font-medium text-slate-900">{reabrindo.restantes}</dd>
+            </dl>
+            <Aviso tipo="info">
+              O bloco volta para <strong>pausado</strong> e pode ser continuado na tela de Sorteio. Os resultados já
+              sorteados não mudam. A reabertura fica registrada na auditoria.
+            </Aviso>
+            <div className="flex justify-end gap-2">
+              <button type="button" className="btn-neutro" onClick={() => setReabrindo(null)}>
+                Cancelar
+              </button>
+              <button
+                type="button"
+                className="btn-primario"
+                disabled={ocupado}
+                onClick={() => {
+                  const alvo = reabrindo
+                  setReabrindo(null)
+                  void executar(
+                    () => requisitar(`${base}/${alvo.id}/reabrir`, { metodo: 'POST' }),
+                    `${alvo.nome} reaberto. Use “Continuar” para voltar a sortear.`,
+                  )
+                }}
+              >
+                Reabrir bloco
               </button>
             </div>
           </div>
