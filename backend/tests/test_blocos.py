@@ -377,14 +377,15 @@ def test_capacidade_nao_fica_abaixo_das_unidades_do_bloco(cliente, auth):
     assert resposta.status_code == 409
 
 
-def test_excluir_bloco_planejado_libera_unidades_e_iniciado_nao_pode(cliente, auth):
+def test_excluir_bloco_libera_unidades_mesmo_iniciado(cliente, auth):
+    # Admin exclui em qualquer situacao (ver test_excluir_bloco.py para o caso com sorteios).
     event_id = _evento([4])
     b1, b2 = _distribuir(cliente, auth, event_id, 2).json()["blocos"]
     _acao(cliente, auth, event_id, b1["id"], "iniciar")
 
-    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 409
+    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 204
     assert cliente.delete(_url(event_id, f"/{b2['id']}"), headers=auth).status_code == 204
-    assert _blocos(cliente, auth, event_id)["unidades_sem_bloco"] == 2
+    assert _blocos(cliente, auth, event_id)["unidades_sem_bloco"] == 4
 
 
 # ------------------------------------------------------------------ ciclo de vida

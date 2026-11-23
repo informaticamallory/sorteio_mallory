@@ -50,6 +50,8 @@ export default function Blocos() {
   // Admin distribui, cria, edita, reordena e exclui; o sorteador conduz (iniciar, pausar, finalizar).
   const configura = pode('configurar_blocos')
   const conduz = pode('controlar_sorteio')
+  // Excluir bloco (em qualquer situação, inclusive com sorteios): só o admin.
+  const exclui = pode('excluir_blocos')
   const navegar = useNavigate()
   const base = `/api/events/${evento.id}/blocos`
 
@@ -187,8 +189,8 @@ export default function Blocos() {
       {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
       {resumo.sorteadas_sem_bloco > 0 && (
         <Aviso tipo="info">
-          {resumo.sorteadas_sem_bloco} unidade(s) foram sorteadas antes da criação dos blocos. Elas permanecem no
-          histórico e não entram na distribuição.
+          {resumo.sorteadas_sem_bloco} unidade(s) já sorteada(s) estão fora dos blocos (sorteadas antes da criação dos
+          blocos ou de um bloco excluído). Elas permanecem no histórico e não entram na distribuição.
         </Aviso>
       )}
 
@@ -269,7 +271,6 @@ export default function Blocos() {
         <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
           {resumo.blocos.map((bloco) => {
             const posicao = planejadosIds.indexOf(bloco.id)
-            const excluivel = bloco.status === 'PLANEJADO' && bloco.sorteadas === 0
             return (
               <CartaoBloco
                 key={bloco.id}
@@ -373,7 +374,7 @@ export default function Blocos() {
                     Reabrir
                   </button>
                 )}
-                {configura && excluivel && (
+                {exclui && (
                   <button
                     type="button"
                     className="btn ml-auto border border-rose-200 bg-white px-3 py-1.5 text-rose-700 hover:bg-rose-50"
@@ -420,14 +421,23 @@ export default function Blocos() {
               <dd className="font-medium text-slate-900">
                 {numeroBloco(excluindo.numero)} — {excluindo.nome}
               </dd>
-              <dt className="text-slate-500">Unidades no bloco</dt>
-              <dd className="font-medium text-slate-900">{excluindo.total}</dd>
+              <dt className="text-slate-500">Situação</dt>
+              <dd className="font-medium text-slate-900">
+                <EtiquetaBloco status={excluindo.status} />
+              </dd>
+              <dt className="text-slate-500">Já sorteados</dt>
+              <dd className="font-medium text-slate-900">{excluindo.sorteadas}</dd>
               <dt className="text-slate-500">Voltam para “sem bloco”</dt>
-              <dd className="font-medium text-slate-900">{excluindo.total}</dd>
+              <dd className="font-medium text-slate-900">{excluindo.restantes}</dd>
             </dl>
             <Aviso tipo="info">
-              Os prêmios deste bloco não serão excluídos. Eles ficarão disponíveis para uma nova distribuição.
+              Nenhum prêmio é excluído. Os que ainda não foram sorteados ficam disponíveis para uma nova distribuição.
+              {excluindo.sorteadas > 0 &&
+                ' Os prêmios já sorteados e seus ganhadores continuam no Histórico e no relatório, com o nome deste bloco.'}
             </Aviso>
+            {excluindo.status === 'EM_ANDAMENTO' && (
+              <Aviso tipo="atencao">Este bloco está em andamento: o sorteio dele para ao excluir.</Aviso>
+            )}
             <div className="flex justify-end gap-2">
               <button type="button" className="btn-neutro" onClick={() => setExcluindo(null)}>
                 Cancelar
@@ -441,7 +451,7 @@ export default function Blocos() {
                   setExcluindo(null)
                   void executar(
                     () => requisitar(`${base}/${alvo.id}`, { metodo: 'DELETE' }),
-                    `${alvo.nome} excluído; ${alvo.total} unidade(s) voltaram para “sem bloco”.`,
+                    `${alvo.nome} excluído; ${alvo.restantes} unidade(s) voltaram para “sem bloco”.`,
                   )
                 }}
               >

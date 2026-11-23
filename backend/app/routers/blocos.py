@@ -12,6 +12,7 @@ from ..deps import evento_atual, exigir_permissao, requer
 from ..permissoes import Permissao
 from ..models import (
     BlocoSorteio,
+    DisplayState,
     Draw,
     Event,
     Participant,
@@ -50,6 +51,8 @@ router = APIRouter(prefix="/api/events/{event_id}/blocos", tags=["blocos"])
 # Distribuir e editar e do admin; o operador ve os blocos e os conduz
 # (iniciar, pausar, finalizar).
 CONFIGURAR = exigir_permissao(Permissao.CONFIGURAR_BLOCOS)
+# Excluir bloco (em qualquer situacao): so o admin.
+EXCLUIR = exigir_permissao(Permissao.EXCLUIR_BLOCOS)
 CONDUZIR = exigir_permissao(Permissao.CONTROLAR_SORTEIO)
 VER = requer(Permissao.VISUALIZAR_BLOCOS)
 
@@ -69,7 +72,7 @@ def _executar(db: Session, acao: Callable[[], T]) -> T:
 
 def _buscar(db: Session, evento: Event, bloco_id: int) -> BlocoSorteio:
     bloco = db.get(BlocoSorteio, bloco_id)
-    if bloco is None or bloco.event_id != evento.id:
+    if bloco is None or bloco.event_id != evento.id or bloco.excluido_em is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Bloco não encontrado")
     return bloco
 
@@ -317,10 +320,15 @@ def remover(
     bloco_id: int,
     evento: Event = Depends(evento_atual),
     db: Session = Depends(get_db),
-    user: User = Depends(CONFIGURAR),
+    user: User = Depends(EXCLUIR),
 ) -> Response:
     bloco = _buscar(db, evento, bloco_id)
+    ds = db.get(DisplayState, evento.id)
+    apresentando = ds is not None and ds.carrossel_bloco_id == bloco.id
     _executar(db, lambda: servico.remover_bloco(db, evento, bloco, user))
+    if apresentando:
+        # O telao saiu da apresentacao dos ganhadores deste bloco.
+        publicar_estado(db, evento, ds)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 

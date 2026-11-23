@@ -414,6 +414,9 @@ class BlocoSorteio(Base):
     iniciado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finalizado_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     finalizado_por_id: Mapped[int | None] = mapped_column(ForeignKey("users.id"), nullable=True)
+    # Bloco excluido pelo admin que ja tinha sorteios: some da gestao de blocos,
+    # mas continua existindo para o historico (Draw.bloco_id aponta para ele).
+    excluido_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     unidades: Mapped[list[PrizeUnit]] = relationship(back_populates="bloco")
     finalizado_por: Mapped[User | None] = relationship()

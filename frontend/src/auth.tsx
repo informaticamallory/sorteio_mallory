@@ -14,6 +14,7 @@ export type Permissao =
   | 'gerenciar_participantes'
   | 'cadastrar_premios'
   | 'configurar_blocos'
+  | 'excluir_blocos'
   | 'definir_regras'
   | 'anular_resultado'
   | 'consultar_relatorios'

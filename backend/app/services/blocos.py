@@ -3,7 +3,9 @@
 Principios:
   * o servidor e a fonte oficial do estado; toda funcao roda dentro da
     transacao da requisicao (BEGIN IMMEDIATE no SQLite);
-  * unidade ja sorteada nunca muda de bloco, e resultados nunca sao alterados;
+  * unidade ja sorteada nunca muda de bloco, e resultados nunca sao alterados
+    (o bloco de cada resultado fica em Draw.bloco_id; excluir um bloco com
+    sorteios so o esconde da gestao, ver remover_bloco);
   * blocos PLANEJADO aceitam qualquer reorganizacao; EM_ANDAMENTO e PAUSADO
     ficam congelados; FINALIZADO so pode liberar unidades disponiveis (ex.:
     depois de uma anulacao), que seguem para um bloco de remanescentes.
@@ -70,7 +72,7 @@ def blocos_do_evento(db: Session, evento_id: int) -> list[BlocoSorteio]:
     return list(
         db.scalars(
             select(BlocoSorteio)
-            .where(BlocoSorteio.event_id == evento_id)
+            .where(BlocoSorteio.event_id == evento_id, BlocoSorteio.excluido_em.is_(None))
             .order_by(BlocoSorteio.ordem, BlocoSorteio.numero)
         ).all()
     )
@@ -92,7 +94,11 @@ def unidades_do_evento(db: Session, evento_id: int) -> list[tuple[PrizeUnit, Pri
 def modo_blocos(db: Session, evento_id: int) -> bool:
     """Evento com ao menos um bloco: todo sorteio passa a exigir bloco em andamento."""
     return (
-        db.scalar(select(BlocoSorteio.id).where(BlocoSorteio.event_id == evento_id).limit(1))
+        db.scalar(
+            select(BlocoSorteio.id)
+            .where(BlocoSorteio.event_id == evento_id, BlocoSorteio.excluido_em.is_(None))
+            .limit(1)
+        )
         is not None
     )
 
@@ -102,6 +108,7 @@ def bloco_em_andamento(db: Session, evento_id: int) -> BlocoSorteio | None:
         select(BlocoSorteio).where(
             BlocoSorteio.event_id == evento_id,
             BlocoSorteio.status == StatusBloco.EM_ANDAMENTO.value,
+            BlocoSorteio.excluido_em.is_(None),
         )
     )
 
@@ -226,6 +233,8 @@ def bloqueio_do_bloco(db: Session, evento: Event, unidade: PrizeUnit) -> str | N
 
 # ------------------------------------------------------------------ criacao e edicao
 def _proximo(db: Session, evento_id: int) -> tuple[int, int]:
+    # Conta tambem os blocos excluidos: o numero do bloco nunca e reaproveitado
+    # (o historico dos sorteios continua citando "Bloco 01").
     numero, ordem = db.execute(
         select(
             func.coalesce(func.max(BlocoSorteio.numero), 0),
@@ -242,6 +251,7 @@ def _nome_livre(db: Session, evento_id: int, nome: str, ignorar_id: int | None =
             BlocoSorteio.event_id == evento_id,
             func.lower(BlocoSorteio.nome) == nome.lower(),
             BlocoSorteio.id != (ignorar_id or 0),
+            BlocoSorteio.excluido_em.is_(None),
         )
     )
     if existente is not None:
@@ -307,22 +317,34 @@ def editar_bloco(
 
 
 def remover_bloco(db: Session, evento: Event, bloco: BlocoSorteio, usuario: User) -> int:
-    """Exclui um bloco PLANEJADO sem nenhum sorteio. Os premios voltam para "sem bloco".
+    """Exclui o bloco (admin), em qualquer situacao. Devolve quantas unidades
+    ainda sem sorteio voltaram para "sem bloco".
 
-    Nunca apaga premios, unidades, ganhadores ou historico. As condicoes sao
-    conferidas de novo aqui, dentro da transacao (outra pessoa pode ter
-    iniciado o bloco depois que a tela foi aberta). Devolve quantas unidades
-    ficaram sem bloco.
+    Nunca apaga premios, unidades, ganhadores ou historico:
+      * sem nenhum sorteio: o bloco e apagado de verdade;
+      * com sorteios (validos ou anulados): o bloco e marcado como excluido
+        (some da gestao de blocos), e Draw.bloco_id continua apontando para ele,
+        entao historico e relatorio seguem mostrando em que bloco cada premio
+        saiu. As unidades ja sorteadas apenas deixam de ocupar o bloco.
+    As condicoes sao conferidas aqui, dentro da transacao.
     """
-    if bloco.status != StatusBloco.PLANEJADO.value:
-        raise RegraDeNegocio(
-            f"O {bloco.nome} já foi iniciado, pausado ou finalizado e não pode ser excluído."
-        )
-    if db.scalar(select(Draw.id).where(Draw.bloco_id == bloco.id).limit(1)) is not None:
-        raise RegraDeNegocio(f"O {bloco.nome} tem sorteios registrados e não pode ser excluído.")
+    if em_revelacao(db, evento):
+        raise RegraDeNegocio("Aguarde o telão revelar o sorteio em andamento antes de excluir o bloco.")
+    ds = db.get(DisplayState, evento.id)
+    if ds is not None and ds.carrossel_bloco_id == bloco.id:
+        # A apresentacao dos ganhadores deste bloco no telao e encerrada junto
+        # (o chamador publica o novo estado do telao depois do commit).
+        from . import carrossel  # import local: carrossel depende deste modulo
+
+        if ds.estado == EstadoTelao.CARROSSEL_GANHADORES.value:
+            carrossel.comandar(db, evento, "encerrar", usuario)
+        else:
+            carrossel.limpar(ds)
+            ds.versao += 1
+
+    sorteios = db.scalar(select(func.count(Draw.id)).where(Draw.bloco_id == bloco.id)) or 0
     unidades = list(bloco.unidades)
-    if any(u.status != StatusUnidade.DISPONIVEL.value for u in unidades):
-        raise RegraDeNegocio(f"O {bloco.nome} tem prêmios já sorteados e não pode ser excluído.")
+    liberadas = [u for u in unidades if u.status == StatusUnidade.DISPONIVEL.value]
     for unidade in unidades:
         unidade.bloco_id = None
         unidade.ordem_bloco = None
@@ -331,10 +353,24 @@ def remover_bloco(db: Session, evento: Event, bloco: BlocoSorteio, usuario: User
         evento,
         usuario,
         "bloco_removido",
-        {"bloco_id": bloco.id, "numero": bloco.numero, "nome": bloco.nome, "unidades_liberadas": len(unidades)},
+        {
+            "bloco_id": bloco.id,
+            "numero": bloco.numero,
+            "nome": bloco.nome,
+            "status": bloco.status,
+            "unidades_liberadas": len(liberadas),
+            "unidades_ja_sorteadas": len(unidades) - len(liberadas),
+            "sorteios_no_historico": sorteios,
+        },
     )
-    db.delete(bloco)
-    return len(unidades)
+    if sorteios:
+        bloco.excluido_em = utcnow()
+        if bloco.status == StatusBloco.EM_ANDAMENTO.value:
+            # Libera o "um bloco em andamento por evento" para o proximo bloco.
+            bloco.status = StatusBloco.PAUSADO.value
+    else:
+        db.delete(bloco)
+    return len(liberadas)
 
 
 def reordenar_blocos(db: Session, evento: Event, ids: list[int], usuario: User) -> None:
@@ -677,7 +713,12 @@ def _plano_remanescentes(
     lotes = [candidatas[i : i + tamanho] for i in range(0, len(candidatas), tamanho)]
     numero, _ordem = _proximo(db, evento.id)
     usados = {
-        n.lower() for n in db.scalars(select(BlocoSorteio.nome).where(BlocoSorteio.event_id == evento.id))
+        n.lower()
+        for n in db.scalars(
+            select(BlocoSorteio.nome).where(
+                BlocoSorteio.event_id == evento.id, BlocoSorteio.excluido_em.is_(None)
+            )
+        )
     }
     plano = []
     sufixo = 1

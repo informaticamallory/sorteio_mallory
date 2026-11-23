@@ -80,7 +80,7 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("POST", f"{E}/blocos/reordenar"): {A, O},
     ("GET", f"{E}/blocos/{{bloco_id}}"): {A, S, O},
     ("PATCH", f"{E}/blocos/{{bloco_id}}"): {A, O},
-    ("DELETE", f"{E}/blocos/{{bloco_id}}"): {A, O},
+    ("DELETE", f"{E}/blocos/{{bloco_id}}"): {A},
     ("POST", f"{E}/blocos/{{bloco_id}}/iniciar"): {A, S},
     ("POST", f"{E}/blocos/{{bloco_id}}/pausar"): {A, S},
     ("POST", f"{E}/blocos/{{bloco_id}}/finalizar"): {A, S},

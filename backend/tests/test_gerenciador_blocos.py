@@ -6,8 +6,8 @@ from __future__ import annotations
 from sqlalchemy import select
 
 from app.database import session_scope
-from app.models import AuditLog, BlocoSorteio, PrizeUnit
-from test_blocos import _acao, _blocos, _distribuir, _evento, _sortear, _url
+from app.models import AuditLog, BlocoSorteio, Draw, PrizeUnit
+from test_blocos import _acao, _blocos, _distribuir, _evento, _liberar_telao, _sortear, _url
 
 
 def _criar(cliente, auth, event_id, **corpo):
@@ -83,27 +83,30 @@ def test_excluir_bloco_planejado_devolve_premios_sem_apagar_nada(cliente, auth):
     assert b1["id"]
 
 
-def test_exclusao_bloqueada_para_bloco_iniciado_pausado_finalizado_ou_com_sorteio(cliente, auth):
+def test_admin_exclui_bloco_em_qualquer_situacao_sem_perder_sorteios(cliente, auth):
+    # Regra atual: o admin exclui bloco iniciado, pausado ou finalizado. Sem
+    # sorteios o bloco e apagado; com sorteios ele so sai da gestao de blocos.
     event_id = _evento([4])
     _distribuir(cliente, auth, event_id, 2)
     b1, b2 = _blocos(cliente, auth, event_id)["blocos"]
     _acao(cliente, auth, event_id, b1["id"], "iniciar")
-    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 409  # em andamento
     _acao(cliente, auth, event_id, b1["id"], "pausar")
-    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 409  # pausado
-    _acao(cliente, auth, event_id, b1["id"], "finalizar", {"confirmar_pendentes": True})
-    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 409  # finalizado
+    assert cliente.delete(_url(event_id, f"/{b1['id']}"), headers=auth).status_code == 204  # pausado
+    with session_scope() as db:
+        assert db.get(BlocoSorteio, b1["id"]) is None  # sem sorteio: apagado
 
-    # Bloco "planejado" com sorteio registrado (estado inconsistente forjado): continua bloqueado.
     _acao(cliente, auth, event_id, b2["id"], "iniciar")
     with session_scope() as db:
         unidade = db.scalar(select(PrizeUnit).where(PrizeUnit.bloco_id == b2["id"]))
         unidade_id = unidade.id
     assert _sortear(cliente, auth, event_id, unidade_id, "excluir-com-sorteio").status_code == 200
+    _liberar_telao(event_id)
+    assert cliente.delete(_url(event_id, f"/{b2['id']}"), headers=auth).status_code == 204  # em andamento
     with session_scope() as db:
-        db.get(BlocoSorteio, b2["id"]).status = "PLANEJADO"
-    resposta = cliente.delete(_url(event_id, f"/{b2['id']}"), headers=auth)
-    assert resposta.status_code == 409 and "sorteios registrados" in resposta.json()["detail"]
+        bloco = db.get(BlocoSorteio, b2["id"])
+        assert bloco is not None and bloco.excluido_em is not None  # com sorteio: preservado
+        assert db.scalar(select(Draw).where(Draw.bloco_id == b2["id"])) is not None
+    assert _blocos(cliente, auth, event_id)["blocos"] == []
 
 
 # ------------------------------------------------------------------ reordenacao

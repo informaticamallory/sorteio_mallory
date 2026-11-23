@@ -29,6 +29,8 @@ class Permissao(str, enum.Enum):
     GERENCIAR_PARTICIPANTES = "gerenciar_participantes"
     CADASTRAR_PREMIOS = "cadastrar_premios"
     CONFIGURAR_BLOCOS = "configurar_blocos"
+    # Excluir bloco (em qualquer situacao, inclusive com sorteios). So o ADMIN.
+    EXCLUIR_BLOCOS = "excluir_blocos"
     DEFINIR_REGRAS = "definir_regras"
     ANULAR_RESULTADO = "anular_resultado"
     CONSULTAR_RELATORIOS = "consultar_relatorios"
