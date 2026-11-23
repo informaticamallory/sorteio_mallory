@@ -127,17 +127,18 @@ function Moldura({
 }) {
   return (
     <div className="flex min-h-full flex-col bg-mallory-fundo text-mallory-preto">
-      <CabecalhoMallory secao="Cadastro" icone="premios" evento={evento?.nome}>
+      <CabecalhoMallory secao="Cadastro" icone="premios" evento={evento?.nome} mostrarSecao={false}>
         <Link to="/login" className={CLASSE_BOTAO_CABECALHO} title="Entrar">
           <Icone nome="senha" className="h-4 w-4" />
           <span className="hidden sm:inline">Entrar</span>
         </Link>
       </CabecalhoMallory>
       {evento?.demo && <FaixaDemo />}
-      <main className="mx-auto w-full max-w-md flex-1 px-4 py-6 sm:py-8">
+      {/* Celular: espaçamentos menores para o formulário caber sem rolar. */}
+      <main className="mx-auto w-full max-w-md flex-1 px-4 py-3 sm:py-8">
         {children}
         {rodapeLogin && (
-          <p className="mt-6 text-center text-sm text-mallory-texto">
+          <p className="mt-4 text-center text-sm text-mallory-texto sm:mt-6">
             Já tem cadastro?{' '}
             <Link to="/login" className="rec-foco rounded font-semibold text-mallory-acao hover:underline">
               Entrar com matrícula e senha
@@ -145,7 +146,9 @@ function Moldura({
           </p>
         )}
       </main>
-      <RodapeMallory secao="Cadastro" />
+      <div className="hidden sm:block">
+        <RodapeMallory secao="Cadastro" />
+      </div>
     </div>
   )
 }
@@ -157,7 +160,7 @@ function Cartao({ children }: { children: React.ReactNode }) {
       <svg aria-hidden className="pointer-events-none absolute bottom-0 right-0 h-14 w-40" viewBox="0 0 160 56" preserveAspectRatio="none">
         <path d="M160 6 C 130 40, 70 54, 0 56 L 160 56 Z" fill="#F16425" />
       </svg>
-      <div className="relative space-y-5 px-5 pb-12 pt-7 sm:px-7">{children}</div>
+      <div className="relative space-y-4 px-5 pb-10 pt-5 sm:space-y-5 sm:px-7 sm:pb-12 sm:pt-7">{children}</div>
     </section>
   )
 }
@@ -170,9 +173,9 @@ function Topo({ icone, titulo, subtitulo, cor = 'laranja' }: { icone: NomeIcone;
           <Icone nome={icone} className="h-9 w-9" />
         </span>
       ) : (
-        <Icone nome={icone} className="mx-auto h-12 w-12 text-mallory-escuro" />
+        <Icone nome={icone} className="mx-auto h-10 w-10 text-mallory-escuro sm:h-12 sm:w-12" />
       )}
-      <h1 className="mt-3 text-[26px] font-bold leading-tight">{titulo}</h1>
+      <h1 className="mt-2 text-[26px] font-bold leading-tight sm:mt-3">{titulo}</h1>
       {subtitulo && <div className="mt-2 text-base text-mallory-texto">{subtitulo}</div>}
     </div>
   )
@@ -276,22 +279,14 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
 
         {passo === 'identificacao' && (
           <form
-            className="space-y-5"
+            className="space-y-4 sm:space-y-5"
             onSubmit={(e) => {
               e.preventDefault()
               void identificar()
             }}
           >
-            <Topo
-              icone="premios"
-              titulo="Cadastro para o Sorteio"
-              subtitulo={
-                <>
-                  <p className="text-sm">{evento.nome}</p>
-                  <p className="mt-3">Preencha seus dados para participar do sorteio.</p>
-                </>
-              }
-            />
+            {/* O nome do evento já aparece inteiro no cabeçalho. */}
+            <Topo icone="premios" titulo="Cadastro para o Sorteio" subtitulo="Preencha seus dados para participar do sorteio." />
             <div>
               <label className={ROTULO} htmlFor="matricula">
                 <Icone nome="cracha" className="h-5 w-5 text-mallory-escuro" />

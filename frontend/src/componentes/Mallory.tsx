@@ -16,12 +16,15 @@ export function CabecalhoMallory({
   secao,
   icone,
   evento,
+  mostrarSecao = true,
   children,
 }: {
   secao: string
   icone: NomeIcone
-  /** Nome do evento ativo, quando a tela pertence a um evento. */
+  /** Nome do evento ativo, quando a tela pertence a um evento (aparece inteiro). */
   evento?: string
+  /** false: sem o rótulo da seção (a própria tela já tem um título grande). */
+  mostrarSecao?: boolean
   /** Acoes a direita (Inicio, Trocar evento...). */
   children?: ReactNode
 }) {
@@ -44,17 +47,22 @@ export function CabecalhoMallory({
         </Link>
         {/* Celular: logo + acoes na 1a linha, secao na 2a, evento na 3a.
             Tablet: evento em linha propria. A partir de 1024 px: tudo numa linha. */}
-        <span aria-hidden className="hidden h-8 w-0.5 rounded bg-mallory-laranja sm:block" />
-        <span className="order-2 flex items-center gap-2 text-base font-semibold sm:order-none sm:text-lg">
-          <Icone nome={icone} className="h-5 w-5 text-mallory-laranja sm:h-6 sm:w-6" />
-          {secao}
-        </span>
+        {mostrarSecao && (
+          <>
+            <span aria-hidden className="hidden h-8 w-0.5 rounded bg-mallory-laranja sm:block" />
+            <span className="order-2 flex items-center gap-2 text-base font-semibold sm:order-none sm:text-lg">
+              <Icone nome={icone} className="h-5 w-5 text-mallory-laranja sm:h-6 sm:w-6" />
+              {secao}
+            </span>
+          </>
+        )}
         {evento && (
           <>
-            <span aria-hidden className="hidden h-7 w-px bg-white/25 lg:block" />
-            <span className="order-last flex w-full min-w-0 items-center gap-2 pr-[30%] text-sm text-white/90 lg:order-none lg:w-auto lg:flex-1 lg:pr-0 lg:text-base">
+            <span aria-hidden className={`hidden h-7 w-px bg-white/25 ${mostrarSecao ? 'lg:block' : 'sm:block'}`} />
+            {/* Nome inteiro: quebra em mais linhas em vez de cortar com "...". */}
+            <span className="order-last flex w-full min-w-0 items-start gap-2 pr-[18%] text-sm text-white/90 lg:order-none lg:w-auto lg:flex-1 lg:items-center lg:pr-0 lg:text-base">
               <Icone nome="eventos" className="h-5 w-5 shrink-0 text-white/80" />
-              <span className="truncate">{evento}</span>
+              <span className="min-w-0 break-words">{evento}</span>
             </span>
           </>
         )}
