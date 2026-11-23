@@ -55,6 +55,8 @@ export default function Blocos() {
 
   const [resumo, setResumo] = useState<BlocosResumo | null>(null)
   const [capacidade, setCapacidade] = useState(evento.capacidade_bloco_padrao)
+  // Intercala os prêmios na sequência (vale para distribuir e para remanescentes).
+  const [misturar, setMisturar] = useState(true)
   const [erro, setErro] = useState('')
   const [aviso, setAviso] = useState('')
   const [ocupado, setOcupado] = useState(false)
@@ -120,13 +122,14 @@ export default function Blocos() {
     setPrevia(null)
     if (tipo === 'distribuir') {
       const ok = await executar(
-        () => requisitar(`${base}/distribuir`, { metodo: 'POST', corpo: { capacidade: dados.capacidade } }),
+        () => requisitar(`${base}/distribuir`, { metodo: 'POST', corpo: { capacidade: dados.capacidade, misturar } }),
         `Distribuição concluída: ${dados.unidades} unidade(s) em ${dados.blocos.length} bloco(s).`,
       )
       if (ok) await recarregarEvento()
     } else {
       await executar(
-        () => requisitar(`${base}/remanescentes`, { metodo: 'POST', corpo: { capacidade: dados.capacidade } }),
+        () =>
+          requisitar(`${base}/remanescentes`, { metodo: 'POST', corpo: { capacidade: dados.capacidade, misturar } }),
         `${dados.blocos.length} bloco(s) de remanescentes criado(s).`,
       )
     }
@@ -237,6 +240,18 @@ export default function Blocos() {
               </button>
             )}
           </div>
+          <label className="mt-3 flex items-start gap-2 text-sm text-slate-700">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-marca-600"
+              checked={misturar}
+              onChange={(e) => setMisturar(e.target.checked)}
+            />
+            <span>
+              <strong>Misturar os prêmios</strong> — intercala os prêmios na sequência, sem repetir o mesmo prêmio
+              seguido sempre que possível. Desmarcado, segue a ordem do cadastro de prêmios.
+            </span>
+          </label>
           <p className="mt-3 text-xs text-slate-500">
             Você confere a prévia antes de confirmar. Ex.: 107 unidades com 25 por bloco geram blocos de 25, 25, 25, 25
             e 7. A distribuição refaz apenas os blocos ainda não iniciados; prêmios já sorteados nunca mudam de bloco.

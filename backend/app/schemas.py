@@ -882,6 +882,8 @@ class BlocoUpdate(BaseModel):
 
 class DistribuirIn(BaseModel):
     capacidade: int = Field(default=25, ge=1, le=1000)
+    # Intercala os premios (o mesmo premio nao sai varias vezes seguidas).
+    misturar: bool = False
 
 
 class PreviaBlocoOut(BaseModel):
@@ -926,6 +928,8 @@ class RemanescentesIn(BaseModel):
     nome: str | None = Field(default=None, max_length=120)
     # Unidades por bloco; sem valor, usa a capacidade padrao do evento.
     capacidade: int | None = Field(default=None, ge=1, le=1000)
+    # Intercala os premios (o mesmo premio nao sai varias vezes seguidas).
+    misturar: bool = False
 
 
 class BlocoOut(BaseModel):

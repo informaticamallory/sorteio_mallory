@@ -13,7 +13,9 @@ from __future__ import annotations
 
 import hashlib
 from collections import defaultdict
+from collections.abc import Callable
 from dataclasses import dataclass
+from typing import TypeVar
 
 from sqlalchemy import func, select
 from sqlalchemy.exc import IntegrityError
@@ -39,6 +41,8 @@ from .elegibilidade import matricula_da_sorte
 from .erros import RegraDeNegocio
 
 NOME_REMANESCENTES = "Prêmios remanescentes"
+
+T = TypeVar("T")
 
 
 @dataclass
@@ -362,6 +366,68 @@ def reordenar_blocos(db: Session, evento: Event, ids: list[int], usuario: User) 
 
 
 # ------------------------------------------------------------------ distribuicao
+def misturar_por_premio(itens: list[T], premio_de: Callable[[T], int]) -> list[T]:
+    """Intercala os premios: cada um fica espalhado ao longo da sequencia e o
+    mesmo premio nao sai duas vezes seguidas sempre que houver outro para
+    colocar no meio.
+
+    Deterministico (sem sorteio): a ordem dos premios nao interfere em quem
+    ganha e o resultado pode ser conferido e ajustado no "Organizar".
+    Ex.: 4 Air Fryers + 2 TVs + 1 bicicleta -> AF, TV, AF, BIC, AF, TV, AF.
+    """
+    grupos = list(_agrupar(itens, premio_de).values())
+    total = len(itens)
+    usados = [0] * len(grupos)
+
+    def alvo(g: int) -> tuple[float, int]:
+        # Espalhamento uniforme: a k-esima unidade de um premio com c unidades
+        # "deveria" estar na posicao relativa (k + 0.5) / c da sequencia.
+        return ((usados[g] + 0.5) / len(grupos[g]), g)
+
+    # Um premio com mais da metade das unidades obriga a repetir: nesse caso
+    # vale so o espalhamento uniforme (nao junta o premio maior no fim).
+    evitar_repeticao = max(map(len, grupos), default=0) <= (total + 1) // 2
+
+    def ainda_da_sem_repetir(ultimo: int) -> bool:
+        """Sobra (comecando por um premio diferente de `ultimo`) sem repetir?"""
+        restantes = [len(grupos[g]) - usados[g] for g in range(len(grupos))]
+        r = sum(restantes)
+        m = max(restantes, default=0)
+        if m > (r + 1) // 2:
+            return False
+        # Com r impar e m no limite, o maior tem de vir primeiro: nao pode ser o ultimo.
+        return not (r % 2 == 1 and m == (r + 1) // 2 and restantes[ultimo] == m)
+
+    sequencia: list[T] = []
+    ultimo = -1
+    for _ in range(total):
+        candidatos = sorted(
+            (g for g in range(len(grupos)) if usados[g] < len(grupos[g])), key=alvo
+        )
+        escolhido = candidatos[0]
+        if evitar_repeticao:
+            for g in candidatos:
+                if g == ultimo:
+                    continue
+                usados[g] += 1
+                viavel = ainda_da_sem_repetir(g)
+                usados[g] -= 1
+                if viavel:
+                    escolhido = g
+                    break
+        sequencia.append(grupos[escolhido][usados[escolhido]])
+        usados[escolhido] += 1
+        ultimo = escolhido
+    return sequencia
+
+
+def _agrupar(itens: list[T], premio_de: Callable[[T], int]) -> dict[int, list[T]]:
+    grupos: dict[int, list[T]] = {}
+    for item in itens:
+        grupos.setdefault(premio_de(item), []).append(item)
+    return grupos
+
+
 def _distribuiveis(db: Session, evento: Event) -> tuple[dict[int, BlocoSorteio], list[PrizeUnit]]:
     """Blocos planejados (refeitos pela distribuicao) e as unidades que entram nela."""
     planejados = {
@@ -400,14 +466,15 @@ def previa_distribuicao(db: Session, evento: Event, capacidade: int) -> dict:
 
 
 def distribuir_automaticamente(
-    db: Session, evento: Event, capacidade: int, usuario: User
+    db: Session, evento: Event, capacidade: int, usuario: User, misturar: bool = False
 ) -> list[BlocoSorteio]:
     """Reparte as unidades disponiveis em blocos de `capacidade`.
 
     Refaz apenas o que ainda nao comecou: blocos PLANEJADO sao recriados e as
     unidades disponiveis sem bloco entram na conta. Blocos iniciados ou
     finalizados, e unidades ja sorteadas, nao sao tocados. Ex.: 107 unidades
-    com capacidade 25 geram blocos de 25, 25, 25, 25 e 7.
+    com capacidade 25 geram blocos de 25, 25, 25, 25 e 7. Com `misturar`, os
+    premios sao intercalados (ver misturar_por_premio) antes de repartir.
     """
     if capacidade < 1:
         raise RegraDeNegocio("A capacidade do bloco deve ser de pelo menos 1 unidade.", 422)
@@ -415,6 +482,8 @@ def distribuir_automaticamente(
     planejados, distribuiveis = _distribuiveis(db, evento)
     if not distribuiveis:
         raise RegraDeNegocio("Não há unidades disponíveis para distribuir.")
+    if misturar:
+        distribuiveis = misturar_por_premio(distribuiveis, lambda u: u.prize_id)
 
     for unidade in distribuiveis:
         unidade.bloco_id = None
@@ -454,6 +523,7 @@ def distribuir_automaticamente(
             "unidades": len(distribuiveis),
             "blocos_criados": [b.numero for b in criados],
             "blocos_planejados_refeitos": len(planejados),
+            "premios_misturados": misturar,
         },
     )
     return criados
@@ -588,16 +658,18 @@ def salvar_distribuicao(
 
 
 def _plano_remanescentes(
-    db: Session, evento: Event, nome: str | None, capacidade: int | None
+    db: Session, evento: Event, nome: str | None, capacidade: int | None, misturar: bool = False
 ) -> tuple[list[tuple[PrizeUnit, Prize]], list[dict]]:
     """Unidades remanescentes e os blocos (numero, nome, quantidade) que as recebem.
 
     Respeita a capacidade (padrao: a do evento): 30 remanescentes com 25 por
-    bloco viram dois blocos, de 25 e 5.
+    bloco viram dois blocos, de 25 e 5. Com `misturar`, os premios sao intercalados.
     """
     candidatas = _remanescentes(db, evento.id)
     if not candidatas:
         raise RegraDeNegocio("Não há unidades remanescentes para um novo bloco.")
+    if misturar:
+        candidatas = misturar_por_premio(candidatas, lambda par: par[1].id)
     tamanho = capacidade or evento.capacidade_bloco_padrao
     if tamanho < 1:
         raise RegraDeNegocio("A capacidade do bloco deve ser de pelo menos 1 unidade.", 422)
@@ -636,9 +708,14 @@ def previa_remanescentes(db: Session, evento: Event, nome: str | None, capacidad
 
 
 def criar_bloco_remanescentes(
-    db: Session, evento: Event, usuario: User, nome: str | None, capacidade: int | None = None
+    db: Session,
+    evento: Event,
+    usuario: User,
+    nome: str | None,
+    capacidade: int | None = None,
+    misturar: bool = False,
 ) -> list[BlocoSorteio]:
-    candidatas, plano = _plano_remanescentes(db, evento, nome, capacidade)
+    candidatas, plano = _plano_remanescentes(db, evento, nome, capacidade, misturar)
     criados: list[BlocoSorteio] = []
     inicio = 0
     for item in plano:
@@ -662,7 +739,12 @@ def criar_bloco_remanescentes(
             evento,
             usuario,
             "bloco_remanescentes_criado",
-            {"bloco_id": bloco.id, "numero": numero, "unidades": item["unidades"]},
+            {
+                "bloco_id": bloco.id,
+                "numero": numero,
+                "unidades": item["unidades"],
+                "premios_misturados": misturar,
+            },
         )
     return criados
 

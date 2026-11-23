@@ -232,7 +232,10 @@ def distribuir(
     db: Session = Depends(get_db),
     user: User = Depends(CONFIGURAR),
 ) -> BlocosOut:
-    _executar(db, lambda: servico.distribuir_automaticamente(db, evento, dados.capacidade, user))
+    _executar(
+        db,
+        lambda: servico.distribuir_automaticamente(db, evento, dados.capacidade, user, dados.misturar),
+    )
     return _listar(db, evento)
 
 
@@ -264,7 +267,10 @@ def criar_remanescentes(
 ) -> BlocoOut:
     """Cria os blocos de remanescentes (respeitando a capacidade). Devolve o primeiro."""
     criados = _executar(
-        db, lambda: servico.criar_bloco_remanescentes(db, evento, user, dados.nome, dados.capacidade)
+        db,
+        lambda: servico.criar_bloco_remanescentes(
+            db, evento, user, dados.nome, dados.capacidade, dados.misturar
+        ),
     )
     return _bloco_atual(db, evento, criados[0])
 
