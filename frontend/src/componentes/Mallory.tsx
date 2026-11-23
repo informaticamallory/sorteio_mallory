@@ -41,7 +41,7 @@ export function CabecalhoMallory({
         <path d="M520 46 C 440 74, 360 80, 260 80 L 520 80 Z" fill="#F16425" />
       </svg>
 
-      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 sm:py-4">
+      <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-2 sm:px-6 sm:py-4">
         <Link to="/login" className="rec-foco rounded focus-visible:ring-offset-mallory-preto" title="Tela inicial">
           <LogoMallory className="h-10 w-auto md:h-14" />
         </Link>

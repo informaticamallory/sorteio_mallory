@@ -165,7 +165,20 @@ function Cartao({ children }: { children: React.ReactNode }) {
   )
 }
 
-function Topo({ icone, titulo, subtitulo, cor = 'laranja' }: { icone: NomeIcone; titulo: string; subtitulo?: React.ReactNode; cor?: 'laranja' | 'verde' }) {
+function Topo({
+  icone,
+  titulo,
+  subtitulo,
+  cor = 'laranja',
+  compacto = false,
+}: {
+  icone: NomeIcone
+  titulo: string
+  subtitulo?: React.ReactNode
+  cor?: 'laranja' | 'verde'
+  /** Celular: sem o ícone e com subtítulo menor, para a tela caber sem rolar. */
+  compacto?: boolean
+}) {
   return (
     <div className="text-center">
       {cor === 'verde' ? (
@@ -173,10 +186,15 @@ function Topo({ icone, titulo, subtitulo, cor = 'laranja' }: { icone: NomeIcone;
           <Icone nome={icone} className="h-9 w-9" />
         </span>
       ) : (
-        <Icone nome={icone} className="mx-auto h-10 w-10 text-mallory-escuro sm:h-12 sm:w-12" />
+        <Icone
+          nome={icone}
+          className={`mx-auto h-10 w-10 text-mallory-escuro sm:h-12 sm:w-12 ${compacto ? 'hidden sm:block' : ''}`}
+        />
       )}
-      <h1 className="mt-2 text-[26px] font-bold leading-tight sm:mt-3">{titulo}</h1>
-      {subtitulo && <div className="mt-2 text-base text-mallory-texto">{subtitulo}</div>}
+      <h1 className={`text-[26px] font-bold leading-tight sm:mt-3 ${compacto ? '' : 'mt-2'}`}>{titulo}</h1>
+      {subtitulo && (
+        <div className={`mt-2 text-mallory-texto ${compacto ? 'text-sm sm:text-base' : 'text-base'}`}>{subtitulo}</div>
+      )}
     </div>
   )
 }
@@ -286,7 +304,12 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
             }}
           >
             {/* O nome do evento já aparece inteiro no cabeçalho. */}
-            <Topo icone="premios" titulo="Cadastro para o Sorteio" subtitulo="Preencha seus dados para participar do sorteio." />
+            <Topo
+              icone="premios"
+              titulo="Cadastro para o Sorteio"
+              subtitulo="Preencha seus dados para participar do sorteio."
+              compacto
+            />
             <div>
               <label className={ROTULO} htmlFor="matricula">
                 <Icone nome="cracha" className="h-5 w-5 text-mallory-escuro" />
@@ -356,7 +379,7 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
               {enviando ? 'Conferindo...' : 'Continuar'}
               {!enviando && <Icone nome="avancar" className="h-5 w-5" />}
             </button>
-            <p className="text-center text-xs text-mallory-texto">* Campos obrigatórios</p>
+            <p className="hidden text-center text-xs text-mallory-texto sm:block">* Campos obrigatórios</p>
           </form>
         )}
 
