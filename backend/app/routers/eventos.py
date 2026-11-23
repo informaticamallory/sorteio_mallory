@@ -195,6 +195,10 @@ def atualizar_regras(
         )
     db.commit()
     db.refresh(evento)
+    if {"modo_sorteio", "matricula_faixa_inicio", "matricula_faixa_fim"} & alterado.keys():
+        # O telao mostra o numero da sorte ou a matricula conforme o modo: quem
+        # ja esta na tela (ex.: apresentacao dos ganhadores) troca na hora.
+        notificar_atualizacao(db, evento)
     return evento
 
 

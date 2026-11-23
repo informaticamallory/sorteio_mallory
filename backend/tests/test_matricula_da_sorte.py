@@ -74,6 +74,58 @@ def test_modo_faixa_mostra_a_matricula_no_cartao_na_consulta_e_no_telao(cliente,
     assert telao["ganhador"]["numero_sorteio"] == area["numero_sorteio"] is not None
 
 
+def test_modo_faixa_mostra_a_matricula_na_apresentacao_dos_ganhadores_do_bloco(cliente, auth):
+    from test_blocos import _acao, _distribuir, _evento, _sortear_proxima
+
+    event_id = _evento([3], participantes=5)
+    r = cliente.patch(
+        f"/api/events/{event_id}/regras",
+        json={"modo_sorteio": "faixa_matricula", "matricula_faixa_inicio": 1, "matricula_faixa_fim": 5},
+        headers=auth,
+    )
+    assert r.status_code == 200, r.text
+    (bloco,) = _distribuir(cliente, auth, event_id, 3).json()["blocos"]
+    _acao(cliente, auth, event_id, bloco["id"], "iniciar")
+    for i in range(3):
+        _sortear_proxima(cliente, auth, event_id, bloco["id"], f"faixa-carrossel-{i}")
+    _acao(cliente, auth, event_id, bloco["id"], "finalizar", {})
+    with session_scope() as db:
+        token = db.get(Event, event_id).telao_token
+    estado = cliente.get(f"/api/public/{token}/estado").json()
+    assert estado["estado"] == "carrossel_ganhadores", estado["estado"]
+    slides = estado["carrossel"]["slides"]
+    assert len(slides) == 3
+    assert all(s.get("ganhador_matricula_da_sorte") for s in slides), slides
+
+
+def test_mudar_para_faixa_atualiza_na_hora_a_apresentacao_no_telao(cliente, auth, monkeypatch):
+    """Apresentacao dos ganhadores ja na tela (com "Nº"); o admin salva o modo
+    faixa nas Regras: o telao recebe o estado novo, ja com a matricula."""
+    from app import bus
+    from test_blocos import _acao, _distribuir, _evento, _sortear_proxima
+
+    event_id = _evento([2], participantes=5)
+    (bloco,) = _distribuir(cliente, auth, event_id, 2).json()["blocos"]
+    _acao(cliente, auth, event_id, bloco["id"], "iniciar")
+    for i in range(2):
+        _sortear_proxima(cliente, auth, event_id, bloco["id"], f"faixa-depois-{i}")
+    _acao(cliente, auth, event_id, bloco["id"], "finalizar", {})
+
+    publicados = []
+    monkeypatch.setattr(bus, "publicar", lambda chave, payload, atraso_s=0: publicados.append((chave, payload)))
+    r = cliente.patch(
+        f"/api/events/{event_id}/regras",
+        json={"modo_sorteio": "faixa_matricula", "matricula_faixa_inicio": 1, "matricula_faixa_fim": 99999},
+        headers=auth,
+    )
+    assert r.status_code == 200, r.text
+
+    estados = [p for chave, p in publicados if chave == event_id and p.get("tipo") == "estado"]
+    assert estados, "o telao nao foi avisado da mudanca de modo"
+    slides = estados[-1]["carrossel"]["slides"]
+    assert len(slides) == 2 and all(s.get("ganhador_matricula_da_sorte") for s in slides), slides
+
+
 def test_voltar_ao_modo_padrao_volta_ao_numero_aleatorio(cliente, auth):
     event_id, pid, token = _preparar(cliente, auth, faixa=True)
     cliente.patch(f"/api/events/{event_id}/regras", json={"modo_sorteio": "numero_sorte"}, headers=auth)
