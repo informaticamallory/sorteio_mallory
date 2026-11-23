@@ -176,7 +176,7 @@ export default function Credenciamento() {
                 <p className="font-medium text-slate-900">{p.nome}</p>
                 <p className="text-xs text-slate-500">
                   Matrícula <span className="font-mono">{p.matricula}</span>
-                  {p.numero_sorteio ? ` · Nº ${p.numero_sorteio}` : ''}
+                  {evento.modo_sorteio === 'numero_sorte' && p.numero_sorteio ? ` · Nº ${p.numero_sorteio}` : ''}
                   {p.setor ? ` · ${p.setor}` : ''}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1">

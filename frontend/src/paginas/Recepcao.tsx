@@ -87,6 +87,8 @@ export default function Recepcao() {
   const podeEntregar = pode('confirmar_entrega')
   const podeDesfazer = pode('desfazer_entrega')
   const podeAnular = pode('anular_resultado') // só admin
+  // Nº da sorte só vale no modo padrão; na faixa de matrículas fica em branco.
+  const modoNumero = evento.modo_sorteio === 'numero_sorte'
 
   const [resumo, setResumo] = useState<EntregasResumo | null>(null)
   const [texto, setTexto] = useState('')
@@ -295,7 +297,7 @@ export default function Recepcao() {
             <p className="text-lg font-bold text-slate-900">{c.nome}</p>
             <p className="text-sm text-slate-600">
               Matrícula <span className="font-mono">{c.matricula}</span>
-              {c.numero_sorteio !== null && <> · nº da sorte <span className="font-mono">{c.numero_sorteio}</span></>}
+              {modoNumero && c.numero_sorteio != null && <> · nº da sorte <span className="font-mono">{c.numero_sorteio}</span></>}
               {c.pulseira && <> · pulseira <span className="font-mono">{c.pulseira}</span></>}
             </p>
             <p className="mt-1 flex items-center gap-1.5 text-sm font-semibold text-amber-800">
@@ -333,10 +335,10 @@ export default function Recepcao() {
                       <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-3 gap-y-0.5 text-sm">
                         <dt className="text-slate-500">Matrícula</dt>
                         <dd className="font-mono">{c.matricula}</dd>
-                        <dt className="text-slate-500">Pulseira</dt>
-                        <dd className="font-mono text-base font-semibold">{c.pulseira ?? '—'}</dd>
+                        <dt className="text-slate-500">Setor</dt>
+                        <dd>{c.setor || '—'}</dd>
                         <dt className="text-slate-500">Nº da sorte</dt>
-                        <dd className="font-mono">{c.numero_sorteio ?? '—'}</dd>
+                        <dd className="font-mono">{(modoNumero && c.numero_sorteio) || '—'}</dd>
                       </dl>
                       <p className="mt-1 text-sm">
                         {pendentes.length > 0 ? (
@@ -463,6 +465,7 @@ export default function Recepcao() {
       <ModalEntrega
         atendimento={atendimento}
         base={base}
+        modoNumero={modoNumero}
         aoFechar={() => setAtendimento(null)}
         aoConcluir={async (texto) => {
           setAtendimento(null)
@@ -511,11 +514,13 @@ export default function Recepcao() {
 function ModalEntrega({
   atendimento,
   base,
+  modoNumero,
   aoFechar,
   aoConcluir,
 }: {
   atendimento: Atendimento | null
   base: string
+  modoNumero: boolean
   aoFechar: () => void
   aoConcluir: (mensagem: string) => Promise<void>
 }) {
@@ -563,7 +568,7 @@ function ModalEntrega({
             <p className="text-lg font-bold text-slate-900">{colaborador.nome}</p>
             <p className="text-sm text-slate-500">
               Matrícula <span className="font-mono">{colaborador.matricula}</span>
-              {colaborador.numero_sorteio ? ` · nº da sorte ${colaborador.numero_sorteio}` : ''}
+              {modoNumero && colaborador.numero_sorteio ? ` · nº da sorte ${colaborador.numero_sorteio}` : ''}
             </p>
           </div>
         </div>

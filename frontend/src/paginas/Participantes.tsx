@@ -263,7 +263,7 @@ export default function Participantes() {
                   </p>
                   <p className="truncate text-xs text-slate-500">
                     Matrícula {p.matricula}
-                    {p.numero_sorteio ? ` · Nº ${p.numero_sorteio}` : ''}
+                    {evento.modo_sorteio === 'numero_sorte' && p.numero_sorteio ? ` · Nº ${p.numero_sorteio}` : ''}
                     {p.pulseira ? ` · Pulseira ${p.pulseira}` : ''}
                     {p.setor ? ` · ${p.setor}` : ''}
                     {!p.participando && p.motivo_participacao ? ` · ${p.motivo_participacao}` : ''}
