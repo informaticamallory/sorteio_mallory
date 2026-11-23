@@ -28,7 +28,7 @@ from ..schemas import (
     SortearIn,
     TelaoComandoIn,
 )
-from ..services.blocos import bloqueio_do_bloco
+from ..services.blocos import bloqueio_do_bloco, proxima_do_bloco
 from ..services.elegibilidade import participantes_elegiveis
 from ..services.notificacoes import avisar_ganhador
 from ..services.sorteio import (
@@ -62,16 +62,17 @@ def _buscar_sorteio(db: Session, evento: Event, draw_id: int) -> Draw:
     return sorteio
 
 
-@router.get(
-    "/sorteio/elegiveis", response_model=ElegiveisOut, dependencies=requer(Permissao.CONTROLAR_SORTEIO)
-)
+@router.get("/sorteio/elegiveis", response_model=ElegiveisOut)
 def conferir_elegiveis(
     prize_unit_id: int | None = Query(default=None),
     evento: Event = Depends(evento_atual),
     db: Session = Depends(get_db),
+    user: User = Depends(SORTEAR),
 ) -> ElegiveisOut:
     elegiveis = participantes_elegiveis(db, evento)
     bloqueios: list[str] = []
+    fora_da_ordem = False
+    proxima_unidade_id = None
 
     if not elegiveis:
         bloqueios.append("Nenhum participante elegível conforme as regras configuradas.")
@@ -87,10 +88,26 @@ def conferir_elegiveis(
             motivo = bloqueio_do_bloco(db, evento, unidade)
             if motivo:
                 bloqueios.append(motivo)
+            elif unidade.bloco_id is not None:
+                proxima = proxima_do_bloco(db, unidade.bloco_id)
+                if proxima is not None and proxima[0].id != unidade.id:
+                    fora_da_ordem = True
+                    proxima_unidade_id = proxima[0].id
+                    if not tem_permissao(user, Permissao.PULAR_ORDEM_DO_BLOCO):
+                        bloqueios.append(
+                            f"Siga a sequência do bloco: o próximo prêmio é {proxima[1].nome} "
+                            f"(unidade {proxima[0].numero})."
+                        )
     else:
         bloqueios.append("Selecione uma unidade de prêmio disponível.")
 
-    return ElegiveisOut(total=len(elegiveis), bloqueios=bloqueios, pode_sortear=not bloqueios)
+    return ElegiveisOut(
+        total=len(elegiveis),
+        bloqueios=bloqueios,
+        pode_sortear=not bloqueios,
+        fora_da_ordem=fora_da_ordem,
+        proxima_unidade_id=proxima_unidade_id,
+    )
 
 
 @router.post("/sorteio", response_model=SorteioOut)
@@ -104,7 +121,7 @@ def sortear(
     display = None
     try:
         sorteio, reaproveitado = realizar_sorteio(
-            db, evento, dados.prize_unit_id, dados.idempotency_key, user
+            db, evento, dados.prize_unit_id, dados.idempotency_key, user, dados.motivo_fora_da_ordem
         )
         if not reaproveitado:
             # O telao recebe apenas nomes para a animacao -- nunca a lista

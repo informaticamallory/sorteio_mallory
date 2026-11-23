@@ -20,7 +20,8 @@ from ..models import (
     User,
     utcnow,
 )
-from .blocos import bloqueio_do_bloco
+from ..permissoes import Permissao, tem_permissao
+from .blocos import bloqueio_do_bloco, proxima_do_bloco
 from .elegibilidade import modo_faixa_matricula, participantes_elegiveis
 from .erros import RegraDeNegocio
 from .notificacoes import notificar_anulacao, notificar_premio
@@ -49,6 +50,7 @@ def realizar_sorteio(
     prize_unit_id: int,
     idempotency_key: str,
     usuario: User,
+    motivo_fora_da_ordem: str | None = None,
 ) -> tuple[Draw, bool]:
     """Sorteia uma unidade de premio. Retorna (sorteio, reaproveitado).
 
@@ -80,6 +82,29 @@ def realizar_sorteio(
     motivo = bloqueio_do_bloco(db, evento, unidade)
     if motivo:
         raise RegraDeNegocio(motivo, 409)
+
+    # Modo blocos: segue a sequencia do bloco. Pular so com permissao e motivo.
+    fora_da_ordem = None
+    proxima = proxima_do_bloco(db, unidade.bloco_id) if unidade.bloco_id is not None else None
+    if proxima is not None and proxima[0].id != unidade.id:
+        proxima_unidade, proximo_premio = proxima
+        texto = (motivo_fora_da_ordem or "").strip()
+        if not tem_permissao(usuario, Permissao.PULAR_ORDEM_DO_BLOCO):
+            raise RegraDeNegocio(
+                f"Siga a sequência do bloco: o próximo prêmio é {proximo_premio.nome} "
+                f"(unidade {proxima_unidade.numero}). Só um administrador pode sortear fora da ordem.",
+                409,
+            )
+        if len(texto) < 5:
+            raise RegraDeNegocio(
+                "Informe o motivo para sortear fora da sequência do bloco (mínimo 5 caracteres).", 422
+            )
+        fora_da_ordem = {
+            "motivo": texto,
+            "proxima_unidade_id": proxima_unidade.id,
+            "proximo_premio": proximo_premio.nome,
+            "proxima_unidade": proxima_unidade.numero,
+        }
 
     faixa = modo_faixa_matricula(evento)
     if faixa and (evento.matricula_faixa_inicio is None or evento.matricula_faixa_fim is None):
@@ -146,6 +171,7 @@ def realizar_sorteio(
                 if faixa
                 else {}
             ),
+            **({"fora_da_ordem": fora_da_ordem} if fora_da_ordem else {}),
         },
     )
 

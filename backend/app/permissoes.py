@@ -39,6 +39,9 @@ class Permissao(str, enum.Enum):
     CONTROLAR_SORTEIO = "controlar_sorteio"
     CONTROLAR_TELAO = "controlar_telao"
     CONSULTAR_RESULTADOS = "consultar_resultados"
+    # Sortear um premio do bloco fora da sequencia definida (com motivo,
+    # registrado na auditoria). So o ADMIN.
+    PULAR_ORDEM_DO_BLOCO = "pular_ordem_do_bloco"
     # Recepcao
     PESQUISAR_COLABORADORES = "pesquisar_colaboradores"
     CONFIRMAR_ENTREGA = "confirmar_entrega"

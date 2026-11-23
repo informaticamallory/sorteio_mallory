@@ -73,12 +73,11 @@ def _detalhe(cliente, auth, event_id, bloco_id) -> dict:
     return cliente.get(_url(event_id, f"/{bloco_id}"), headers=auth).json()
 
 
-def _sortear(cliente, auth, event_id, unidade_id, chave):
-    return cliente.post(
-        f"/api/events/{event_id}/sorteio",
-        json={"prize_unit_id": unidade_id, "idempotency_key": chave},
-        headers=auth,
-    )
+def _sortear(cliente, auth, event_id, unidade_id, chave, motivo_fora_da_ordem=None):
+    corpo = {"prize_unit_id": unidade_id, "idempotency_key": chave}
+    if motivo_fora_da_ordem:
+        corpo["motivo_fora_da_ordem"] = motivo_fora_da_ordem
+    return cliente.post(f"/api/events/{event_id}/sorteio", json=corpo, headers=auth)
 
 
 def _liberar_telao(event_id: int) -> None:
@@ -603,7 +602,8 @@ def test_dois_operadores_sorteando_no_mesmo_bloco_ao_mesmo_tempo(cliente, auth):
     respostas = _em_paralelo(
         [
             lambda: _sortear(cliente, auth, event_id, u1, "paralelo-a-0001"),
-            lambda: _sortear(cliente, auth, event_id, u2, "paralelo-b-0001"),
+            # Fora da ordem (admin, com motivo): o que se testa aqui e a trava da revelacao.
+            lambda: _sortear(cliente, auth, event_id, u2, "paralelo-b-0001", "teste de concorrencia"),
         ]
     )
     assert Counter(r.status_code for r in respostas) == Counter({200: 1, 409: 1})

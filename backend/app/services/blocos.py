@@ -134,6 +134,22 @@ def unidades_ordenadas_do_bloco(db: Session, bloco: BlocoSorteio) -> list[tuple[
     ]
 
 
+def proxima_do_bloco(db: Session, bloco_id: int) -> tuple[PrizeUnit, Prize] | None:
+    """A proxima unidade a sortear: a primeira disponivel na sequencia do bloco.
+
+    Uma unidade cujo resultado foi anulado volta a ficar disponivel e, por
+    estar mais acima na sequencia, volta a ser a proxima.
+    """
+    linha = db.execute(
+        select(PrizeUnit, Prize)
+        .join(Prize, PrizeUnit.prize_id == Prize.id)
+        .where(PrizeUnit.bloco_id == bloco_id, PrizeUnit.status == StatusUnidade.DISPONIVEL.value)
+        .order_by(PrizeUnit.ordem_bloco, Prize.ordem, Prize.id, PrizeUnit.numero)
+        .limit(1)
+    ).first()
+    return (linha[0], linha[1]) if linha else None
+
+
 def _remanescentes(db: Session, evento_id: int) -> list[tuple[PrizeUnit, Prize]]:
     """Unidades disponiveis sem bloco ou deixadas em blocos ja finalizados."""
     finalizados = {

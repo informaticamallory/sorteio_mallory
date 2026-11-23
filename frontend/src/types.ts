@@ -500,6 +500,9 @@ export interface Elegiveis {
   total: number
   bloqueios: string[]
   pode_sortear: boolean
+  // Modo blocos: a unidade escolhida não é a próxima da sequência do bloco.
+  fora_da_ordem: boolean
+  proxima_unidade_id: number | null
 }
 
 export interface Resumo {

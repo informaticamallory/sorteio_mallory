@@ -4,7 +4,7 @@ import { novaChaveIdempotencia, requisitar } from '../api'
 import { useAuth } from '../auth'
 import { BarraProgresso, EtiquetaBloco, numeroBloco } from '../componentes/blocos'
 import ControleCarrossel from '../componentes/ControleCarrossel'
-import { Aviso, Carregando, ImagemPremio, Vazio } from '../componentes/ui'
+import { Aviso, Carregando, ImagemPremio, Modal, Vazio } from '../componentes/ui'
 import type {
   Bloco,
   BlocosResumo,
@@ -46,6 +46,11 @@ export default function Sorteio() {
   const [blocos, setBlocos] = useState<BlocosResumo | null>(null)
   const [finalizando, setFinalizando] = useState<Bloco | null>(null)
   const [operandoBloco, setOperandoBloco] = useState(false)
+  // Modo blocos: motivo informado pelo admin para sortear fora da sequência
+  // (vale para a seleção atual) e o prêmio que está pedindo para pular.
+  const [motivoFora, setMotivoFora] = useState<string | null>(null)
+  const [pulandoPara, setPulandoPara] = useState<Selecao | null>(null)
+  const podePular = pode('pular_ordem_do_bloco')
 
   // Uma chave por tentativa de sorteio: cliques repetidos e novas tentativas da
   // mesma requisicao reutilizam a chave e nunca criam um segundo resultado.
@@ -124,11 +129,15 @@ export default function Sorteio() {
 
   // "Prêmio atual": a próxima unidade da sequência. Não troca enquanto um
   // resultado está na tela (o operador ainda registra entrega ou anulação).
+  // Modo blocos: fora da sequência só fica selecionado com o motivo do admin.
   useEffect(() => {
     if (!premios || resultado) return
-    if (selecao && disponiveis.some((d) => d.unidade.id === selecao.unidade.id)) return
+    const aindaDisponivel = selecao && disponiveis.some((d) => d.unidade.id === selecao.unidade.id)
+    const naSequencia = !modoBlocos || disponiveis[0]?.unidade.id === selecao?.unidade.id
+    if (aindaDisponivel && (naSequencia || motivoFora)) return
     setSelecao(disponiveis[0] ?? null)
-  }, [premios, resultado, selecao, disponiveis])
+    setMotivoFora(null)
+  }, [premios, resultado, selecao, disponiveis, modoBlocos, motivoFora])
 
   async function operarBloco(bloco: Bloco, acao: 'iniciar' | 'pausar' | 'finalizar') {
     setOperandoBloco(true)
@@ -149,8 +158,9 @@ export default function Sorteio() {
     }
   }
 
-  async function apresentarPremio(novaSelecao: Selecao) {
+  async function apresentarPremio(novaSelecao: Selecao, motivo: string | null = null) {
     setSelecao(novaSelecao)
+    setMotivoFora(motivo)
     setResultado(null)
     setErro('')
     await requisitar(`/api/events/${evento.id}/telao`, {
@@ -172,8 +182,13 @@ export default function Sorteio() {
     try {
       const sorteio = await requisitar<SorteioTipo>(`/api/events/${evento.id}/sorteio`, {
         metodo: 'POST',
-        corpo: { prize_unit_id: selecao.unidade.id, idempotency_key: chaveRef.current },
+        corpo: {
+          prize_unit_id: selecao.unidade.id,
+          idempotency_key: chaveRef.current,
+          ...(motivoFora ? { motivo_fora_da_ordem: motivoFora } : {}),
+        },
       })
+      setMotivoFora(null)
       setResultado(sorteio)
       setAguardandoRevelacao(!sorteio.reaproveitado)
       chaveRef.current = null
@@ -268,15 +283,32 @@ export default function Sorteio() {
               <div className="grid max-h-72 gap-2 overflow-y-auto pr-1 sm:grid-cols-2">
                 {disponiveis.map(({ premio, unidade }, posicao) => {
                   const ativo = selecao?.unidade.id === unidade.id
+                  // Modo blocos: só o próximo da sequência; pular é do admin, com motivo.
+                  const foraDaSequencia = modoBlocos && posicao > 0
+                  const travado = foraDaSequencia && !podePular
                   return (
                     <button
                       key={unidade.id}
                       type="button"
-                      onClick={() => void apresentarPremio({ premio, unidade })}
+                      disabled={travado}
+                      title={
+                        travado
+                          ? 'Os prêmios do bloco saem na sequência definida.'
+                          : foraDaSequencia
+                            ? 'Sortear fora da sequência (pede o motivo)'
+                            : undefined
+                      }
+                      onClick={() =>
+                        foraDaSequencia
+                          ? setPulandoPara({ premio, unidade })
+                          : void apresentarPremio({ premio, unidade })
+                      }
                       className={`flex items-center gap-3 rounded-lg border p-2 text-left transition ${
                         ativo
                           ? 'border-marca-500 bg-marca-50'
-                          : 'border-slate-200 hover:bg-slate-50'
+                          : travado
+                            ? 'cursor-not-allowed border-slate-200 opacity-60'
+                            : 'border-slate-200 hover:bg-slate-50'
                       }`}
                     >
                       <div className="h-12 w-12 shrink-0 overflow-hidden rounded bg-slate-100">
@@ -298,6 +330,31 @@ export default function Sorteio() {
                     </button>
                   )
                 })}
+              </div>
+            )}
+
+            {modoBlocos && disponiveis.length > 1 && !motivoFora && (
+              <p className="mt-3 text-xs text-slate-500">
+                Os prêmios saem na sequência do bloco.
+                {podePular && ' Para sortear outro antes, clique nele e informe o motivo.'}
+              </p>
+            )}
+
+            {modoBlocos && motivoFora && selecao && (
+              <div className="mt-3">
+                <Aviso tipo="atencao">
+                  <strong>Fora da sequência:</strong> {selecao.premio.nome} (unidade{' '}
+                  {selecao.unidade.numero}). Motivo: {motivoFora}. Fica registrado na auditoria.{' '}
+                  {disponiveis[0] && (
+                    <button
+                      type="button"
+                      className="font-semibold underline"
+                      onClick={() => void apresentarPremio(disponiveis[0])}
+                    >
+                      Voltar à sequência
+                    </button>
+                  )}
+                </Aviso>
               </div>
             )}
           </div>
@@ -618,7 +675,94 @@ export default function Sorteio() {
           await operarBloco(bloco, 'finalizar')
         }}
       />
+
+      <ModalForaDaSequencia
+        destino={pulandoPara}
+        proximo={disponiveis[0] ?? null}
+        aoFechar={() => setPulandoPara(null)}
+        aoConfirmar={async (motivo) => {
+          if (!pulandoPara) return
+          const destino = pulandoPara
+          setPulandoPara(null)
+          try {
+            await apresentarPremio(destino, motivo)
+          } catch (e) {
+            setErro(e instanceof Error ? e.message : 'Não foi possível apresentar o prêmio')
+          }
+        }}
+      />
     </div>
+  )
+}
+
+/** Admin: sortear um prêmio do bloco antes do próximo da sequência, com motivo. */
+function ModalForaDaSequencia({
+  destino,
+  proximo,
+  aoFechar,
+  aoConfirmar,
+}: {
+  destino: Selecao | null
+  proximo: Selecao | null
+  aoFechar: () => void
+  aoConfirmar: (motivo: string) => Promise<void> | void
+}) {
+  const [motivo, setMotivo] = useState('')
+
+  useEffect(() => {
+    if (destino) setMotivo('')
+  }, [destino])
+
+  if (!destino) return null
+  const valido = motivo.trim().length >= 5
+
+  return (
+    <Modal titulo="Sortear fora da sequência" aberto={destino !== null} aoFechar={aoFechar}>
+      <form
+        className="space-y-4"
+        onSubmit={(e) => {
+          e.preventDefault()
+          if (valido) void aoConfirmar(motivo.trim())
+        }}
+      >
+        <Aviso tipo="atencao">
+          O próximo da sequência é{' '}
+          <strong>
+            {proximo ? `${proximo.premio.nome} (unidade ${proximo.unidade.numero})` : '—'}
+          </strong>
+          . Você vai sortear antes{' '}
+          <strong>
+            {destino.premio.nome} (unidade {destino.unidade.numero})
+          </strong>
+          . O motivo fica registrado na auditoria do sorteio.
+        </Aviso>
+        <div>
+          <label className="rotulo" htmlFor="motivo-fora-da-sequencia">
+            Motivo (mínimo 5 caracteres)
+          </label>
+          <textarea
+            id="motivo-fora-da-sequencia"
+            className="campo"
+            rows={3}
+            required
+            minLength={5}
+            maxLength={300}
+            autoFocus
+            value={motivo}
+            onChange={(e) => setMotivo(e.target.value)}
+            placeholder="Ex.: patrocinador precisa sair mais cedo"
+          />
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-neutro" onClick={aoFechar}>
+            Cancelar
+          </button>
+          <button type="submit" className="btn-primario" disabled={!valido}>
+            Selecionar este prêmio
+          </button>
+        </div>
+      </form>
+    </Modal>
   )
 }
 

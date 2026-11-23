@@ -23,6 +23,7 @@ export type Permissao =
   | 'controlar_sorteio'
   | 'controlar_telao'
   | 'consultar_resultados'
+  | 'pular_ordem_do_bloco'
   | 'pesquisar_colaboradores'
   | 'confirmar_entrega'
   | 'consultar_atendimentos'

@@ -461,12 +461,17 @@ class ReordenarIn(BaseModel):
 class SortearIn(BaseModel):
     prize_unit_id: int
     idempotency_key: str = Field(min_length=8, max_length=80)
+    # Modo blocos: obrigatorio para sortear fora da sequencia do bloco (so admin).
+    motivo_fora_da_ordem: str | None = Field(default=None, max_length=300)
 
 
 class ElegiveisOut(BaseModel):
     total: int
     bloqueios: list[str] = []
     pode_sortear: bool
+    # Modo blocos: a unidade escolhida nao e a proxima da sequencia do bloco.
+    fora_da_ordem: bool = False
+    proxima_unidade_id: int | None = None
 
 
 class SorteioOut(BaseModel):
