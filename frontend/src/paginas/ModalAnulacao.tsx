@@ -22,7 +22,8 @@ export default function ModalAnulacao({
   aoConcluir,
 }: {
   aberto: boolean
-  sorteio: Sorteio | null
+  /** Basta o que o aviso mostra (a Central de Entregas não tem o Sorteio completo). */
+  sorteio: Pick<Sorteio, 'id' | 'rodada' | 'ganhador_nome' | 'premio_nome' | 'entregue'> | null
   eventId: number
   aoFechar: () => void
   aoConcluir: (atualizado: Sorteio) => Promise<void> | void

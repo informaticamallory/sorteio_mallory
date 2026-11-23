@@ -14,6 +14,7 @@ import type {
   PremioGanho,
 } from '../types'
 import { formatar } from './Historico'
+import ModalAnulacao from './ModalAnulacao'
 import { usePainel } from './PainelLayout'
 
 const ESPERA_MS = 300
@@ -85,6 +86,7 @@ export default function Recepcao() {
   const base = `/api/events/${evento.id}/recepcao`
   const podeEntregar = pode('confirmar_entrega')
   const podeDesfazer = pode('desfazer_entrega')
+  const podeAnular = pode('anular_resultado') // só admin
 
   const [resumo, setResumo] = useState<EntregasResumo | null>(null)
   const [texto, setTexto] = useState('')
@@ -101,6 +103,13 @@ export default function Recepcao() {
   const [aviso, setAviso] = useState('')
   const [atendimento, setAtendimento] = useState<Atendimento | null>(null)
   const [desfazendo, setDesfazendo] = useState<{ sorteio_id: number; premio: string; nome: string } | null>(null)
+  const [anulando, setAnulando] = useState<{
+    id: number
+    rodada: number
+    ganhador_nome: string
+    premio_nome: string
+    entregue: boolean
+  } | null>(null)
   const [lendoQr, setLendoQr] = useState(false)
   const [versao, setVersao] = useState(0) // força recarga de lista e histórico
   const sequencia = useRef(0)
@@ -381,14 +390,36 @@ export default function Recepcao() {
                                 Desfazer entrega
                               </button>
                             )
-                          : podeEntregar && (
-                              <button
-                                type="button"
-                                className="btn-primario w-full sm:w-auto"
-                                onClick={() => abrirAtendimento(c, [p.sorteio_id])}
-                              >
-                                Confirmar entrega
-                              </button>
+                          : (podeEntregar || podeAnular) && (
+                              <div className="flex w-full flex-col-reverse gap-2 sm:w-auto sm:flex-row">
+                                {podeAnular && (
+                                  <button
+                                    type="button"
+                                    className="btn-neutro text-rose-700 hover:bg-rose-50"
+                                    title="Ganhador não veio ou desistiu: anula o resultado e a unidade volta para novo sorteio"
+                                    onClick={() =>
+                                      setAnulando({
+                                        id: p.sorteio_id,
+                                        rodada: p.rodada,
+                                        ganhador_nome: c.nome,
+                                        premio_nome: p.premio_nome,
+                                        entregue: false,
+                                      })
+                                    }
+                                  >
+                                    Anular sorteio
+                                  </button>
+                                )}
+                                {podeEntregar && (
+                                  <button
+                                    type="button"
+                                    className="btn-primario"
+                                    onClick={() => abrirAtendimento(c, [p.sorteio_id])}
+                                  >
+                                    Confirmar entrega
+                                  </button>
+                                )}
+                              </div>
                             )}
                       </li>
                     ))}
@@ -447,6 +478,21 @@ export default function Recepcao() {
           await aposOperacao(texto)
         }}
       />
+      <ModalAnulacao
+        aberto={anulando !== null}
+        sorteio={anulando}
+        eventId={evento.id}
+        aoFechar={() => setAnulando(null)}
+        aoConcluir={async () => {
+          const alvo = anulando
+          setAnulando(null)
+          await aposOperacao(
+            alvo
+              ? `Sorteio de ${alvo.premio_nome} para ${alvo.ganhador_nome} anulado. A unidade voltou para ser sorteada de novo.`
+              : 'Sorteio anulado.',
+          )
+        }}
+      />
       {lendoQr && (
         <LeitorQr
           aoLer={(valor) => {
@@ -474,13 +520,11 @@ function ModalEntrega({
   aoConcluir: (mensagem: string) => Promise<void>
 }) {
   const [pulseira, setPulseira] = useState('')
-  const [identidade, setIdentidade] = useState(false)
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
 
   useEffect(() => {
     setPulseira('')
-    setIdentidade(false)
     setErro('')
   }, [atendimento])
 
@@ -556,19 +600,7 @@ function ModalEntrega({
               O sistema confere com a pulseira cadastrada; se não bater, nada é registrado.
             </p>
           </div>
-        ) : (
-          <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm">
-            <input
-              type="checkbox"
-              className="mt-0.5 h-5 w-5 accent-amber-600"
-              checked={identidade}
-              onChange={(e) => setIdentidade(e.target.checked)}
-            />
-            <span className="text-amber-900">
-              Este colaborador não tem pulseira cadastrada. Conferi a identidade pela foto e por documento.
-            </span>
-          </label>
-        )}
+        ) : null}
 
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -578,7 +610,7 @@ function ModalEntrega({
           <button
             type="submit"
             className="btn-primario h-12 text-base uppercase tracking-wide"
-            disabled={enviando || (temPulseira ? !pulseira.trim() : !identidade)}
+            disabled={enviando || (temPulseira && !pulseira.trim())}
           >
             <Icone nome="check" className="h-5 w-5" />
             {enviando ? 'Registrando...' : premios.length > 1 ? `Confirmar ${premios.length} entregas` : 'Confirmar entrega'}
