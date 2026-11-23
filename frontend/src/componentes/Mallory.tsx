@@ -40,7 +40,7 @@ export function CabecalhoMallory({
 
       <div className="relative mx-auto flex max-w-6xl flex-wrap items-center gap-x-4 gap-y-2 px-4 py-3 sm:px-6 sm:py-4">
         <Link to="/login" className="rec-foco rounded focus-visible:ring-offset-mallory-preto" title="Tela inicial">
-          <LogoMallory className="h-7 w-auto md:h-10" />
+          <LogoMallory className="h-10 w-auto md:h-14" />
         </Link>
         {/* Celular: logo + acoes na 1a linha, secao na 2a, evento na 3a.
             Tablet: evento em linha propria. A partir de 1024 px: tudo numa linha. */}

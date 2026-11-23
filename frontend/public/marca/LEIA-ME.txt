@@ -1,9 +1,13 @@
-Logomarca oficial Mallory usada no cabecalho preto da Recepcao.
+Logomarca oficial Mallory usada nos cabecalhos pretos (painel, login, portal).
 
-  mallory-branca.png    logo completa (com o slogan), branca, fundo transparente.
-                        Extraida de original-laranja.png (so o fundo laranja foi removido).
-  original-laranja.png  arquivo oficial como foi recebido (branco sobre laranja #F16425).
+  mallory-presente-branca.png   logo em uso: MALLORY + "PRESENTE NO SEU DIA A DIA.",
+                                branca, fundo transparente. Extraida de
+                                original-presente-grafite.png (so o fundo grafite foi removido).
+  original-presente-grafite.png arquivo como foi recebido (branco sobre grafite).
+  mallory-branca.png            logo anterior ("Dedicados a ser sua marca favorita"),
+                                horizontal; so aparece se a atual faltar.
+  original-laranja.png          arquivo da logo anterior como foi recebido.
 
-Para trocar: coloque mallory-branca.svg aqui (tem prioridade sobre o PNG e fica mais
-nitido) ou substitua o PNG. Depois gere o build de novo (scripts\iniciar-evento.ps1 ja faz isso).
-Sem nenhum dos arquivos, a Recepcao mostra apenas o texto "Sorteios Mallory".
+Para trocar: substitua mallory-presente-branca.png (ou ajuste a lista FONTES em
+src/componentes/LogoMallory.tsx). Depois gere o build de novo (scripts\iniciar-evento.ps1 ja faz isso).
+Sem nenhum dos arquivos, aparece apenas o texto "Sorteios Mallory".

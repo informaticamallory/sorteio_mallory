@@ -45,7 +45,7 @@ export default function Casca({
   return (
     <div className="min-h-full bg-fundo lg:pl-60">
       {/* Barra superior (celular e tablet) */}
-      <header className="sticky top-0 z-30 flex h-12 items-center gap-2 bg-mallory-preto px-2 text-white lg:hidden">
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-mallory-preto px-2 text-white lg:hidden">
         <button
           type="button"
           onClick={() => setAberto(true)}
@@ -55,7 +55,7 @@ export default function Casca({
           <Icone nome="menu" className="h-5 w-5" />
         </button>
         <Link to="/" className="shrink-0" title="Sorteios Mallory">
-          <LogoMallory className="h-4 w-auto" />
+          <LogoMallory className="h-10 w-auto" />
         </Link>
       </header>
 
@@ -69,9 +69,10 @@ export default function Casca({
         }`}
         aria-label="Menu principal"
       >
-        <div className="flex h-14 items-center justify-between border-b border-white/10 bg-mallory-preto px-4">
+        {/* Mesma altura do cabeçalho da página (h-20): o preto continua sem degrau. */}
+        <div className="flex h-20 shrink-0 items-center justify-between gap-2 bg-mallory-preto px-4">
           <Link to="/" className="min-w-0" title="Sorteios Mallory">
-            <LogoMallory className="h-5 w-auto max-w-full" />
+            <LogoMallory className="h-auto w-[180px] max-w-full" />
           </Link>
           <button
             type="button"
@@ -125,7 +126,7 @@ export default function Casca({
       </aside>
 
       {/* Cabeçalho da página: preto com o detalhe curvo laranja (identidade Mallory). */}
-      <header className="relative overflow-hidden bg-mallory-preto text-white">
+      <header className="relative overflow-hidden bg-mallory-preto text-white lg:flex lg:min-h-20 lg:items-center">
         <svg
           aria-hidden
           className="pointer-events-none absolute bottom-0 right-0 h-full w-1/3 max-w-[420px]"
@@ -135,7 +136,7 @@ export default function Casca({
           <path d="M520 30 C 420 70, 300 78, 170 80 L 520 80 Z" fill="#E65300" opacity="0.9" />
           <path d="M520 46 C 440 74, 360 80, 260 80 L 520 80 Z" fill="#F16425" />
         </svg>
-        <div className="relative mx-auto flex max-w-6xl flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6">
+        <div className="relative mx-auto flex w-full max-w-6xl flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="min-w-0 pr-[18%] sm:pr-0">
             <h1 className="truncate text-xl font-bold leading-tight text-white">{titulo}</h1>
             {subtitulo && <p className="truncate text-[13px] text-white/75">{subtitulo}</p>}
