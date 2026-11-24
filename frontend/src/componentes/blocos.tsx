@@ -104,7 +104,7 @@ export function CartaoBloco({
         <p className="text-right text-xs font-medium text-slate-500">{bloco.percentual}% concluído</p>
       </div>
 
-      {children && <div className="mt-auto flex flex-wrap gap-2">{children}</div>}
+      {children && <div className="mt-auto flex flex-wrap items-center gap-2 [&>*]:whitespace-nowrap">{children}</div>}
     </article>
   )
 }

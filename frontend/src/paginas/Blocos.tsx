@@ -318,8 +318,14 @@ export default function Blocos() {
                   Ver prêmios
                 </button>
                 {configura && (
-                  <button type="button" className="btn-neutro px-3 py-1.5" onClick={() => setEditando(bloco)}>
-                    Editar
+                  <button
+                    type="button"
+                    className="btn-neutro px-2.5 py-1.5"
+                    onClick={() => setEditando(bloco)}
+                    aria-label={`Editar ${bloco.nome}`}
+                    title="Editar bloco"
+                  >
+                    <Icone nome="editar" className="h-4 w-4" />
                   </button>
                 )}
                 {conduz && (bloco.status === 'PLANEJADO' || bloco.status === 'PAUSADO') && (
@@ -376,15 +382,16 @@ export default function Blocos() {
                   </button>
                 )}
                 {exclui && (
+                  // Só o ícone: cabe na mesma linha dos outros botões.
                   <button
                     type="button"
-                    className="btn ml-auto border border-rose-200 bg-white px-3 py-1.5 text-rose-700 hover:bg-rose-50"
+                    className="btn ml-auto shrink-0 border border-rose-200 bg-white px-2.5 py-1.5 text-rose-700 hover:bg-rose-50"
                     disabled={ocupado}
                     onClick={() => setExcluindo(bloco)}
                     aria-label={`Excluir ${bloco.nome}`}
+                    title="Excluir bloco"
                   >
                     <Icone nome="excluir" className="h-4 w-4" />
-                    Excluir
                   </button>
                 )}
               </CartaoBloco>
