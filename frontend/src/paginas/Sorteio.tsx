@@ -22,6 +22,26 @@ import Icone from '../componentes/Icone'
 // Outro operador pode iniciar, pausar ou finalizar blocos em outro aparelho.
 const ATUALIZAR_BLOCOS_MS = 10_000
 
+// Sorteio automático: quanto tempo o ganhador fica na tela antes do próximo.
+const CHAVE_PAUSA = 'sorteio.pausa_automatico'
+const PAUSA_PADRAO_S = 8
+const PAUSA_MIN_S = 3
+const PAUSA_MAX_S = 60
+
+function limitarPausa(valor: number): number {
+  if (!Number.isFinite(valor)) return PAUSA_PADRAO_S
+  return Math.min(PAUSA_MAX_S, Math.max(PAUSA_MIN_S, Math.round(valor)))
+}
+
+function lerPausa(): number {
+  try {
+    const salvo = localStorage.getItem(CHAVE_PAUSA)
+    return salvo ? limitarPausa(Number(salvo)) : PAUSA_PADRAO_S
+  } catch {
+    return PAUSA_PADRAO_S
+  }
+}
+
 interface Selecao {
   premio: Premio
   unidade: Unidade
@@ -51,10 +71,20 @@ export default function Sorteio() {
   const [motivoFora, setMotivoFora] = useState<string | null>(null)
   const [pulandoPara, setPulandoPara] = useState<Selecao | null>(null)
   const podePular = pode('pular_ordem_do_bloco')
+  // Sorteio automático: sorteia o próximo da sequência sozinho, com uma pausa
+  // mostrando o ganhador. Roda neste navegador; cada sorteio continua sendo
+  // um sorteio normal no servidor (aleatório, auditado, um por vez).
+  const [automatico, setAutomatico] = useState(false)
+  const [pausaS, setPausaS] = useState<number>(lerPausa)
+  const [proximoEm, setProximoEm] = useState<number | null>(null)
+  const [agora, setAgora] = useState(() => Date.now())
+  const [avisoAuto, setAvisoAuto] = useState('')
+  // Ao ligar o automático, o primeiro sorteio sai na hora (sem esperar a pausa).
+  const imediatoRef = useRef(false)
 
-  // Uma chave por tentativa de sorteio: cliques repetidos e novas tentativas da
-  // mesma requisicao reutilizam a chave e nunca criam um segundo resultado.
-  const chaveRef = useRef<string | null>(null)
+  // Uma chave por tentativa de sorteio da MESMA unidade: cliques repetidos e
+  // novas tentativas reutilizam a chave e nunca criam um segundo resultado.
+  const chaveRef = useRef<{ unidade: number; chave: string } | null>(null)
 
   const carregarPremios = useCallback(async () => {
     const lista = await requisitar<Premio[]>(`/api/events/${evento.id}/premios`)
@@ -108,6 +138,14 @@ export default function Sorteio() {
   useEffect(() => {
     if (telao?.estado === 'resultado') setAguardandoRevelacao(false)
   }, [telao?.estado])
+
+  // Se o aviso do telão se perder (conexão oscilando), relê o estado depois da
+  // animação para não deixar o painel (e o automático) esperando à toa.
+  useEffect(() => {
+    if (!aguardandoRevelacao) return
+    const id = window.setTimeout(() => void recarregarTelao(), evento.duracao_animacao_ms + 3000)
+    return () => window.clearTimeout(id)
+  }, [aguardandoRevelacao, evento.duracao_animacao_ms, recarregarTelao])
 
   const modoBlocos = blocos?.modo_blocos === true
   const blocoAtivo = blocos?.blocos.find((b) => b.id === blocos.bloco_ativo_id) ?? null
@@ -174,18 +212,22 @@ export default function Sorteio() {
     if (estado !== 'encerramento') setResultado(null)
   }
 
-  async function iniciarSorteio() {
-    if (!selecao || sorteando) return
+  /** Sorteia a unidade `alvo` (manual, "Sortear próximo" ou automático). */
+  async function sortear(alvo: Selecao, motivo: string | null): Promise<boolean> {
+    if (sorteando) return false
     setErro('')
     setSorteando(true)
-    if (!chaveRef.current) chaveRef.current = novaChaveIdempotencia()
+    setSelecao(alvo)
+    if (chaveRef.current?.unidade !== alvo.unidade.id) {
+      chaveRef.current = { unidade: alvo.unidade.id, chave: novaChaveIdempotencia() }
+    }
     try {
       const sorteio = await requisitar<SorteioTipo>(`/api/events/${evento.id}/sorteio`, {
         metodo: 'POST',
         corpo: {
-          prize_unit_id: selecao.unidade.id,
-          idempotency_key: chaveRef.current,
-          ...(motivoFora ? { motivo_fora_da_ordem: motivoFora } : {}),
+          prize_unit_id: alvo.unidade.id,
+          idempotency_key: chaveRef.current.chave,
+          ...(motivo ? { motivo_fora_da_ordem: motivo } : {}),
         },
       })
       setMotivoFora(null)
@@ -193,13 +235,36 @@ export default function Sorteio() {
       setAguardandoRevelacao(!sorteio.reaproveitado)
       chaveRef.current = null
       await Promise.all([carregarPremios(), recarregarResumo(), recarregarTelao(), carregarBlocos()])
+      return true
     } catch (e) {
-      // A chave e preservada: tocar em "Iniciar sorteio" de novo e uma nova
+      // A chave e preservada: tentar de novo a mesma unidade e uma nova
       // tentativa da MESMA rodada, nao um segundo sorteio.
       setErro(e instanceof Error ? e.message : 'Falha ao sortear')
+      return false
     } finally {
       setSorteando(false)
     }
+  }
+
+  function iniciarSorteio() {
+    if (selecao) void sortear(selecao, motivoFora)
+  }
+
+  function alterarPausa(valor: number) {
+    const pausa = limitarPausa(valor)
+    setPausaS(pausa)
+    try {
+      localStorage.setItem(CHAVE_PAUSA, String(pausa))
+    } catch {
+      /* fica só nesta tela */
+    }
+  }
+
+  function ligarAutomatico() {
+    setAvisoAuto('')
+    setErro('')
+    imediatoRef.current = true
+    setAutomatico(true)
   }
 
   async function registrarEntrega(entregue: boolean) {
@@ -214,13 +279,91 @@ export default function Sorteio() {
 
   const emAnimacao = telao?.estado === 'sorteando'
   const revelado = resultado !== null && !aguardandoRevelacao
-  const bloqueado = !elegiveis?.pode_sortear || sorteando || emAnimacao
+  const bloqueado = !elegiveis?.pode_sortear || sorteando || emAnimacao || automatico
+  const proximo = disponiveis[0] ?? null
+  // Janela aberta (anular, finalizar, pular): o automático espera.
+  const emEspera = anulando || finalizando !== null || pulandoPara !== null
+
+  // O automático sempre usa a versão mais recente de `sortear` e do próximo.
+  const sortearRef = useRef(sortear)
+  sortearRef.current = sortear
+  const proximoRef = useRef(proximo)
+  proximoRef.current = proximo
+
+  // Laço do automático: espera a revelação no telão, conta a pausa e sorteia o
+  // próximo da sequência. Para sozinho no fim ou em qualquer erro do servidor.
+  useEffect(() => {
+    if (!automatico) {
+      setProximoEm(null)
+      return
+    }
+    if (sorteando || emAnimacao || emEspera || (resultado !== null && !revelado)) {
+      setProximoEm(null)
+      return
+    }
+    if (!proximoRef.current) {
+      setAutomatico(false)
+      setProximoEm(null)
+      setAvisoAuto(
+        modoBlocos
+          ? 'Sorteio automático concluído: todos os prêmios do bloco foram sorteados. Confira se algum ganhador ausente precisa ser anulado e finalize o bloco.'
+          : 'Sorteio automático concluído: não há mais prêmios disponíveis.',
+      )
+      return
+    }
+    const espera = resultado !== null && !imediatoRef.current ? pausaS * 1000 : 0
+    setProximoEm(Date.now() + espera)
+    const id = window.setTimeout(() => {
+      const alvo = proximoRef.current
+      imediatoRef.current = false
+      setProximoEm(null)
+      if (!alvo) return
+      void sortearRef.current(alvo, null).then((ok) => {
+        if (ok) return
+        setAutomatico(false)
+        setErro((atual) => `${atual} O sorteio automático foi pausado.`.trim())
+      })
+    }, espera)
+    return () => window.clearTimeout(id)
+  }, [
+    automatico,
+    sorteando,
+    emAnimacao,
+    emEspera,
+    resultado?.id,
+    resultado?.status,
+    revelado,
+    proximo?.unidade.id,
+    pausaS,
+    modoBlocos,
+  ])
+
+  // Contagem regressiva na tela.
+  useEffect(() => {
+    if (proximoEm === null) return
+    setAgora(Date.now())
+    const id = window.setInterval(() => setAgora(Date.now()), 250)
+    return () => window.clearInterval(id)
+  }, [proximoEm])
+
+  const statusAuto = !automatico
+    ? null
+    : sorteando
+      ? 'Sorteando...'
+      : emEspera
+        ? 'Em espera enquanto a janela está aberta.'
+        : emAnimacao || (resultado !== null && !revelado)
+          ? 'Aguardando o telão revelar o ganhador...'
+          : proximoEm !== null && proximo
+            ? `Próximo sorteio em ${Math.max(0, Math.ceil((proximoEm - agora) / 1000))} s: ${proximo.premio.nome} (unidade ${proximo.unidade.numero})`
+            : 'Preparando o próximo sorteio...'
 
   if (premios === null) return <Carregando />
 
   return (
     <div className="space-y-4">
       {erro && <Aviso tipo="erro">{erro}</Aviso>}
+      {avisoAuto && <Aviso tipo="sucesso">{avisoAuto}</Aviso>}
 
       {!evento.regras_confirmadas_em && (
         <Aviso tipo="atencao">
@@ -285,14 +428,16 @@ export default function Sorteio() {
                   const ativo = selecao?.unidade.id === unidade.id
                   // Modo blocos: só o próximo da sequência; pular é do admin, com motivo.
                   const foraDaSequencia = modoBlocos && posicao > 0
-                  const travado = foraDaSequencia && !podePular
+                  const travado = (foraDaSequencia && !podePular) || automatico
                   return (
                     <button
                       key={unidade.id}
                       type="button"
                       disabled={travado}
                       title={
-                        travado
+                        automatico
+                          ? 'Pause o automático para escolher outro prêmio.'
+                          : travado
                           ? 'Os prêmios do bloco saem na sequência definida.'
                           : foraDaSequencia
                             ? 'Sortear fora da sequência (pede o motivo)'
@@ -414,6 +559,64 @@ export default function Sorteio() {
                 {selecao.premio.quantidade}
               </p>
             )}
+
+            {/* ------------------------------------------------ automático */}
+            {(proximo || automatico) && (
+              <div
+                className={`mt-4 rounded-lg border p-3 ${automatico ? 'border-marca-300 bg-marca-50/60' : 'border-slate-200'}`}
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <p className="text-sm font-semibold text-slate-900">Sorteio automático</p>
+                    <p className="text-xs text-slate-500">
+                      Sorteia {modoBlocos ? 'os prêmios do bloco' : 'os prêmios'} na sequência, um após o outro.
+                    </p>
+                  </div>
+                  <label className="flex items-center gap-1.5 text-xs text-slate-600">
+                    Ganhador na tela por
+                    <input
+                      type="number"
+                      min={PAUSA_MIN_S}
+                      max={PAUSA_MAX_S}
+                      className="campo h-9 w-16 px-2 text-center"
+                      value={pausaS}
+                      onChange={(e) => alterarPausa(Number(e.target.value))}
+                      aria-label="Segundos com o ganhador na tela antes do próximo sorteio"
+                    />
+                    s
+                  </label>
+                </div>
+                {statusAuto && (
+                  <p className="mt-2 text-sm font-medium text-marca-700" aria-live="polite">
+                    {statusAuto}
+                  </p>
+                )}
+                {automatico ? (
+                  <button
+                    type="button"
+                    className="btn-neutro mt-3 h-11 w-full"
+                    onClick={() => setAutomatico(false)}
+                  >
+                    <Icone nome="pausa" className="h-4 w-4" />
+                    Pausar automático
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    className="btn-primario mt-3 h-11 w-full"
+                    disabled={sorteando || emAnimacao || !proximo || motivoFora !== null}
+                    onClick={ligarAutomatico}
+                  >
+                    <Icone nome="play" className="h-4 w-4" />
+                    Iniciar automático
+                  </button>
+                )}
+                <p className="mt-2 text-xs text-slate-500">
+                  Pause para tratar um ganhador ausente: abrir a anulação também segura o próximo sorteio.
+                  {modoBlocos && ' No fim do bloco ele para sozinho; a finalização continua com você.'}
+                </p>
+              </div>
+            )}
           </div>
 
           {/* ------------------------------------------------ resultado */}
@@ -519,14 +722,26 @@ export default function Sorteio() {
                     </div>
                   )}
 
-                  {disponiveis.length > 0 && (
-                    <button
-                      type="button"
-                      className="btn-primario w-full"
-                      onClick={() => void apresentarPremio(disponiveis[0])}
-                    >
-                      Próximo prêmio: {disponiveis[0].premio.nome} <Icone nome="avancar" className="h-4 w-4" />
-                    </button>
+                  {/* Semiautomático: um clique sorteia o próximo da sequência. */}
+                  {proximo && !automatico && (
+                    <div className="flex flex-col gap-2 sm:flex-row">
+                      <button
+                        type="button"
+                        className="btn-primario h-11 flex-1"
+                        disabled={sorteando || emAnimacao}
+                        onClick={() => void sortear(proximo, null)}
+                      >
+                        Sortear próximo: {proximo.premio.nome} <Icone nome="avancar" className="h-4 w-4" />
+                      </button>
+                      <button
+                        type="button"
+                        className="btn-neutro h-11"
+                        title="Mostra o próximo prêmio no telão sem sortear"
+                        onClick={() => void apresentarPremio(proximo)}
+                      >
+                        Só apresentar
+                      </button>
+                    </div>
                   )}
                 </div>
               )}
