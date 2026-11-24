@@ -13,6 +13,7 @@ export type Permissao =
   | 'gerenciar_usuarios'
   | 'gerenciar_participantes'
   | 'cadastrar_premios'
+  | 'excluir_premios'
   | 'configurar_blocos'
   | 'excluir_blocos'
   | 'definir_regras'

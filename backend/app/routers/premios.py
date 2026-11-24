@@ -6,10 +6,12 @@ from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import evento_atual, exigir_permissao, requer
-from ..permissoes import Permissao
+from ..permissoes import Permissao, tem_permissao
 from ..models import (
     AuditLog,
+    DisplayState,
     Draw,
+    EstadoTelao,
     Event,
     Participant,
     Prize,
@@ -17,7 +19,10 @@ from ..models import (
     StatusSorteio,
     StatusUnidade,
     User,
+    utcnow,
 )
+from ..services.blocos import em_revelacao
+from ..services.telao import publicar_estado
 from ..schemas import PremioIn, PremioOut, PremioUpdate, ReordenarIn, UnidadeOut
 
 router = APIRouter(prefix="/api/events/{event_id}/premios", tags=["premios"])
@@ -29,7 +34,8 @@ LER = requer(Permissao.CADASTRAR_PREMIOS, Permissao.CONTROLAR_SORTEIO, alguma=Tr
 
 def _buscar(db: Session, evento: Event, prize_id: int) -> Prize:
     premio = db.get(Prize, prize_id)
-    if premio is None or premio.event_id != evento.id:
+    # Premio excluido pelo admin so existe para o historico.
+    if premio is None or premio.event_id != evento.id or premio.excluido_em is not None:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Prêmio não encontrado")
     return premio
 
@@ -87,7 +93,9 @@ def _sincronizar_unidades(db: Session, premio: Prize, quantidade: int) -> None:
 @router.get("", response_model=list[PremioOut], dependencies=LER)
 def listar(evento: Event = Depends(evento_atual), db: Session = Depends(get_db)) -> list[PremioOut]:
     premios = db.scalars(
-        select(Prize).where(Prize.event_id == evento.id).order_by(Prize.ordem, Prize.id)
+        select(Prize)
+        .where(Prize.event_id == evento.id, Prize.excluido_em.is_(None))
+        .order_by(Prize.ordem, Prize.id)
     ).all()
     return [_saida(db, premio) for premio in premios]
 
@@ -160,7 +168,9 @@ def reordenar(
 ) -> list[PremioOut]:
     premios = {
         premio.id: premio
-        for premio in db.scalars(select(Prize).where(Prize.event_id == evento.id)).all()
+        for premio in db.scalars(
+            select(Prize).where(Prize.event_id == evento.id, Prize.excluido_em.is_(None))
+        ).all()
     }
     for posicao, prize_id in enumerate(dados.ordem, start=1):
         premio = premios.get(prize_id)
@@ -178,16 +188,28 @@ def excluir(
     user: User = Depends(CADASTRAR),
 ) -> Response:
     premio = _buscar(db, evento, prize_id)
-    tem_sorteio = db.scalar(
-        select(Draw.id)
-        .where(Draw.prize_unit_id.in_([u.id for u in premio.unidades] or [0]))
-        .limit(1)
-    )
-    if tem_sorteio is not None:
-        raise HTTPException(
-            status.HTTP_409_CONFLICT,
-            "Este prêmio já possui resultados registrados e não pode ser excluído.",
-        )
+    sorteios = db.scalars(
+        select(Draw).where(Draw.prize_unit_id.in_([u.id for u in premio.unidades] or [0]))
+    ).all()
+    if sorteios:
+        # Apagar de verdade levaria junto os sorteios (cascata): o premio so
+        # sai da tela de Premios e os resultados ficam no historico.
+        if not tem_permissao(user, Permissao.EXCLUIR_PREMIOS):
+            raise HTTPException(
+                status.HTTP_403_FORBIDDEN,
+                "Este prêmio já teve sorteio. Só o administrador pode excluí-lo.",
+            )
+        if em_revelacao(db, evento):
+            raise HTTPException(
+                status.HTTP_409_CONFLICT,
+                "Aguarde o telão terminar de revelar o resultado antes de excluir o prêmio.",
+            )
+        ds = _excluir_com_resultados(db, evento, premio, sorteios, user)
+        if ds is not None:
+            publicar_estado(db, evento, ds)  # grava tudo e avisa o telao
+        else:
+            db.commit()
+        return Response(status_code=status.HTTP_204_NO_CONTENT)
     db.add(
         AuditLog(
             event_id=evento.id,
@@ -199,3 +221,62 @@ def excluir(
     db.delete(premio)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+def _excluir_com_resultados(
+    db: Session, evento: Event, premio: Prize, sorteios: list[Draw], user: User
+) -> DisplayState | None:
+    """Exclusao logica: nada do historico e apagado.
+
+    * Unidades sorteadas/entregues: o resultado valido continua (historico,
+      Central de Entregas, relatorio), com o nome do premio.
+    * Disponiveis que ja tiveram sorteio (anulado): ficam como REMOVIDO, fora
+      dos blocos e nunca mais sorteadas.
+    * Disponiveis sem sorteio nenhum: apagadas.
+
+    Devolve o estado do telao quando ele estava mostrando uma unidade que saiu
+    (o chamador grava e publica); senao None.
+    """
+    com_sorteio = {s.prize_unit_id for s in sorteios}
+    validos = sum(1 for s in sorteios if s.status == StatusSorteio.VALIDO.value)
+    ds = db.get(DisplayState, evento.id)
+    telao_mudou = False
+    apagadas = removidas = 0
+    for unidade in list(premio.unidades):
+        if unidade.status != StatusUnidade.DISPONIVEL.value:
+            continue
+        if ds is not None and ds.prize_unit_id == unidade.id and ds.estado == EstadoTelao.PREMIO.value:
+            ds.estado = EstadoTelao.AGUARDANDO.value
+            ds.prize_unit_id = None
+            ds.draw_id = None
+            ds.nomes_animacao = []
+            ds.revelar_em = None
+            ds.versao += 1
+            telao_mudou = True
+        if unidade.id in com_sorteio:
+            unidade.status = StatusUnidade.REMOVIDO.value
+            unidade.bloco_id = None
+            unidade.ordem_bloco = None
+            removidas += 1
+        else:
+            premio.unidades.remove(unidade)  # delete-orphan apaga a unidade
+            apagadas += 1
+    premio.excluido_em = utcnow()
+    db.add(
+        AuditLog(
+            event_id=evento.id,
+            usuario_id=user.id,
+            acao="premio_removido",
+            detalhes={
+                "premio_id": premio.id,
+                "premio": premio.nome,
+                "com_resultados": True,
+                "resultados_validos": validos,
+                "sorteios_no_historico": len(sorteios),
+                "unidades_apagadas": apagadas,
+                "unidades_retiradas": removidas,
+            },
+        )
+    )
+    db.flush()
+    return ds if telao_mudou else None

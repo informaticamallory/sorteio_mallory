@@ -81,7 +81,12 @@ export default function Premios() {
   }
 
   async function excluir(premio: Premio) {
-    if (!confirm(`Excluir o prêmio "${premio.nome}"?`)) return
+    const ganhadores = premio.unidades.filter((u) => u.status !== 'disponivel').length
+    const aviso =
+      ganhadores > 0
+        ? `\n\n${ganhadores} unidade(s) já têm ganhador. Os resultados continuam no Histórico e na Central de Entregas; as unidades que faltam sortear saem do sorteio.`
+        : ''
+    if (!confirm(`Excluir o prêmio "${premio.nome}"?${aviso}`)) return
     setErro('')
     try {
       await requisitar(`/api/events/${evento.id}/premios/${premio.id}`, { metodo: 'DELETE' })

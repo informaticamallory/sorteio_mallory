@@ -79,13 +79,17 @@ def blocos_do_evento(db: Session, evento_id: int) -> list[BlocoSorteio]:
 
 
 def unidades_do_evento(db: Session, evento_id: int) -> list[tuple[PrizeUnit, Prize]]:
-    """Todas as unidades, na ordem de apresentacao cadastrada nos premios."""
+    """Todas as unidades, na ordem de apresentacao cadastrada nos premios.
+
+    Fica de fora a sobra de premio excluido (REMOVIDO), que so existe para o
+    historico.
+    """
     return [
         (unidade, premio)
         for unidade, premio in db.execute(
             select(PrizeUnit, Prize)
             .join(Prize, PrizeUnit.prize_id == Prize.id)
-            .where(Prize.event_id == evento_id)
+            .where(Prize.event_id == evento_id, PrizeUnit.status != StatusUnidade.REMOVIDO.value)
             .order_by(Prize.ordem, Prize.id, PrizeUnit.numero)
         ).all()
     ]
@@ -118,7 +122,7 @@ def progresso_por_bloco(db: Session, evento_id: int) -> dict[int | None, Progres
     linhas = db.execute(
         select(PrizeUnit.bloco_id, PrizeUnit.status, func.count(PrizeUnit.id))
         .join(Prize, PrizeUnit.prize_id == Prize.id)
-        .where(Prize.event_id == evento_id)
+        .where(Prize.event_id == evento_id, PrizeUnit.status != StatusUnidade.REMOVIDO.value)
         .group_by(PrizeUnit.bloco_id, PrizeUnit.status)
     ).all()
     for bloco_id, status, quantidade in linhas:

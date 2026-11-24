@@ -154,7 +154,7 @@ def _foto_v1(caminho: Path) -> dict:
             "pulseira", "usuario_id", "nome_busca", "numero_sorteio",
             "matricula_normalizada", "identificacao_hash", "cpf_hash",
         },
-        "prizes": {"nome_busca"},
+        "prizes": {"nome_busca", "excluido_em"},
         "prize_units": {"bloco_id", "ordem_bloco"},
         "draws": {"bloco_id"},
     }

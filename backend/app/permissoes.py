@@ -28,6 +28,9 @@ class Permissao(str, enum.Enum):
     GERENCIAR_USUARIOS = "gerenciar_usuarios"
     GERENCIAR_PARTICIPANTES = "gerenciar_participantes"
     CADASTRAR_PREMIOS = "cadastrar_premios"
+    # Excluir premio que ja teve sorteio (os resultados ficam no historico).
+    # So o ADMIN; sem sorteio, quem cadastra premios exclui.
+    EXCLUIR_PREMIOS = "excluir_premios"
     CONFIGURAR_BLOCOS = "configurar_blocos"
     # Excluir bloco (em qualquer situacao, inclusive com sorteios). So o ADMIN.
     EXCLUIR_BLOCOS = "excluir_blocos"

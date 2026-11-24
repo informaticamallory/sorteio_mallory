@@ -283,13 +283,14 @@ def resumo(evento: Event = Depends(evento_atual), db: Session = Depends(get_db))
         )
     ) or 0
     premios_total = db.scalar(
-        select(func.count(Prize.id)).where(Prize.event_id == evento.id)
+        select(func.count(Prize.id)).where(Prize.event_id == evento.id, Prize.excluido_em.is_(None))
     ) or 0
 
+    # Unidades de premio excluido: so contam as que tem resultado valido.
     unidades = db.execute(
         select(PrizeUnit.status, func.count(PrizeUnit.id))
         .join(Prize, PrizeUnit.prize_id == Prize.id)
-        .where(Prize.event_id == evento.id)
+        .where(Prize.event_id == evento.id, PrizeUnit.status != StatusUnidade.REMOVIDO.value)
         .group_by(PrizeUnit.status)
     ).all()
     por_status = {status_: quantidade for status_, quantidade in unidades}

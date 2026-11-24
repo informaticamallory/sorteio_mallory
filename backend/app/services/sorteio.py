@@ -307,7 +307,14 @@ def anular_sorteio(
 
     unidade = db.get(PrizeUnit, sorteio.prize_unit_id)
     if unidade is not None:
-        unidade.status = StatusUnidade.DISPONIVEL.value
+        premio = db.get(Prize, unidade.prize_id)
+        if premio is not None and premio.excluido_em is not None:
+            # Premio excluido pelo admin: a unidade nao volta para o sorteio.
+            unidade.status = StatusUnidade.REMOVIDO.value
+            unidade.bloco_id = None
+            unidade.ordem_bloco = None
+        else:
+            unidade.status = StatusUnidade.DISPONIVEL.value
 
     _auditar(
         db,

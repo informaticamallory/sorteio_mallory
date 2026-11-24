@@ -345,7 +345,8 @@ export interface Participante {
   tem_conta?: boolean
 }
 
-export type StatusUnidade = 'disponivel' | 'sorteado' | 'entregue'
+/** 'removido': sobra de prêmio excluído pelo admin (só para o histórico). */
+export type StatusUnidade = 'disponivel' | 'sorteado' | 'entregue' | 'removido'
 
 export interface Unidade {
   id: number

@@ -47,6 +47,9 @@ class StatusUnidade(str, enum.Enum):
     DISPONIVEL = "disponivel"
     SORTEADO = "sorteado"
     ENTREGUE = "entregue"
+    # Sobra de um premio excluido pelo admin que ja tinha sorteio anulado: a
+    # unidade fica so pelo historico e nunca mais e sorteada.
+    REMOVIDO = "removido"
 
 
 class StatusSorteio(str, enum.Enum):
@@ -285,6 +288,9 @@ class Prize(Base):
     quantidade: Mapped[int] = mapped_column(Integer, default=1)
     ordem: Mapped[int] = mapped_column(Integer, default=0)
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=utcnow)
+    # Preenchido quando o admin exclui um premio que ja teve sorteio: some da
+    # tela de Premios, mas os resultados continuam apontando para ele.
+    excluido_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
 
     evento: Mapped[Event] = relationship(back_populates="premios")
     unidades: Mapped[list["PrizeUnit"]] = relationship(

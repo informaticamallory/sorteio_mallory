@@ -204,9 +204,14 @@ def anular(
     # Se o telao estava mostrando este resultado, volta para a apresentacao do premio.
     estado = obter_estado(db, evento)
     if estado.get("estado") in {EstadoTelao.RESULTADO.value, EstadoTelao.SORTEANDO.value}:
-        definir_estado(
-            db, evento, EstadoTelao.PREMIO.value, prize_unit_id=sorteio.prize_unit_id
-        )
+        unidade = db.get(PrizeUnit, sorteio.prize_unit_id)
+        if unidade is not None and unidade.status == StatusUnidade.REMOVIDO.value:
+            # Premio excluido: nao ha o que sortear de novo.
+            definir_estado(db, evento, EstadoTelao.AGUARDANDO.value)
+        else:
+            definir_estado(
+                db, evento, EstadoTelao.PREMIO.value, prize_unit_id=sorteio.prize_unit_id
+            )
 
     return SorteioOut(**serializar_sorteio(db, sorteio))
 

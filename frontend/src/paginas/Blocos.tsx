@@ -22,6 +22,7 @@ const SITUACAO_UNIDADE: Record<StatusUnidade, { texto: string; classe: string }>
   disponivel: { texto: 'Aguardando sorteio', classe: 'bg-slate-100 text-slate-700' },
   sorteado: { texto: 'Sorteada', classe: 'bg-marca-50 text-marca-700' },
   entregue: { texto: 'Sorteada e entregue', classe: 'bg-emerald-50 text-emerald-700' },
+  removido: { texto: 'Prêmio excluído', classe: 'bg-slate-100 text-slate-500' },
 }
 
 function mensagem(e: unknown, padrao: string): string {
