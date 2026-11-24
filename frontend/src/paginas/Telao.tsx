@@ -342,6 +342,7 @@ function Resultado({
       reduzir={reduzir}
       dados={{
         nome: ganhador.nome,
+        setor: ganhador.setor,
         fotoUrl: ganhador.foto_url,
         numero: ganhador.numero_sorteio,
         matricula: ganhador.matricula_da_sorte,
@@ -405,6 +406,7 @@ function Carrossel({ estado, reduzir }: { estado: TelaoEstado; reduzir: boolean 
       subtitulo={`DO BLOCO ${numero}`}
       dados={{
         nome: slide.ganhador_nome,
+        setor: slide.ganhador_setor,
         fotoUrl: slide.ganhador_foto_url,
         numero: slide.ganhador_numero,
         matricula: slide.ganhador_matricula_da_sorte,

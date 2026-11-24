@@ -1,5 +1,5 @@
 import type { ReactNode } from 'react'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import Icone from './Icone'
 
 export function Aviso({
@@ -90,12 +90,15 @@ export function ImagemPremio({
   className?: string
   grande?: boolean
 }) {
-  if (url) {
+  // Imagem que não carrega (arquivo apagado, link quebrado): mostra o ícone.
+  const [falhou, setFalhou] = useState<string | null>(null)
+  if (url && falhou !== url) {
     return (
       <img
         src={url}
         alt={`Imagem do prêmio ${nome}`}
         loading="lazy"
+        onError={() => setFalhou(url)}
         className={`object-contain ${className}`}
       />
     )

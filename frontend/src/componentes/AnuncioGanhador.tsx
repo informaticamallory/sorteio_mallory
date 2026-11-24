@@ -29,6 +29,8 @@ function textoOuro(): CSSProperties {
 
 export interface DadosAnuncio {
   nome: string
+  /** Setor do ganhador, logo abaixo do nome (quando cadastrado). */
+  setor?: string | null
   fotoUrl: string | null
   numero: number | null | undefined
   /** Modo faixa de matrículas: a matrícula é o número sorteado exibido. */
@@ -62,16 +64,18 @@ export default function AnuncioGanhador({
     <div className={`relative z-10 w-full max-w-[1500px] ${reduzir ? '' : 'animate-entra-vencedor'}`}>
       <Faixa subtitulo={subtitulo} />
 
+      {/* Os dois cartões têm sempre a mesma altura (topo e base alinhados). */}
       <div className="mt-[2.5vh] grid items-stretch gap-[3vw] lg:grid-cols-[1fr_1.25fr]">
         {/* ---------------------------------------------- prêmio */}
-        <div className="rounded-[2rem] p-[3px]" style={{ background: GRADIENTE_OURO, boxShadow: BRILHO }}>
-          <div className="flex h-full flex-col overflow-hidden rounded-[calc(2rem-3px)] bg-white">
-            <div className="relative flex flex-1 items-center justify-center p-[2vh]" style={{ minHeight: '30vh' }}>
+        <div className="flex rounded-[2rem] p-[3px]" style={{ background: GRADIENTE_OURO, boxShadow: BRILHO }}>
+          <div className="flex w-full flex-col overflow-hidden rounded-[calc(2rem-3px)] bg-white">
+            {/* A imagem ocupa toda a área livre do cartão e se ajusta à tela, sem distorcer. */}
+            <div className="relative min-h-[26vh] flex-1">
               <ImagemPremio
                 url={dados.premioImagemUrl}
                 nome={dados.premioNome}
                 grande
-                className="h-[30vh] w-full rounded-xl text-slate-400"
+                className="absolute inset-[2vh] h-[calc(100%-4vh)] w-[calc(100%-4vh)] rounded-xl text-slate-400"
               />
               {dados.detalhePremio && (
                 <span
@@ -96,17 +100,17 @@ export default function AnuncioGanhador({
         </div>
 
         {/* ---------------------------------------------- ganhador */}
-        <div className="relative pt-[6vh]">
+        <div className="flex">
           <div
-            className="relative flex h-full flex-col items-center rounded-[2rem] border-[3px] px-[3vw] pb-[3vh] pt-[7vh] text-center"
+            className="relative flex w-full flex-col items-center justify-center rounded-[2rem] border-[3px] px-[3vw] py-[3vh] text-center"
             style={{
               borderColor: OURO,
               background: 'color-mix(in srgb, var(--cor-fundo) 82%, black)',
               boxShadow: `${BRILHO}, inset 0 0 40px color-mix(in srgb, var(--cor-primaria) 12%, transparent)`,
             }}
           >
-            {/* Foto + "PARABÉNS!" sobre a borda do cartão */}
-            <div className="absolute -top-[6vh] left-1/2 flex -translate-x-1/2 items-center">
+            {/* Foto (grande quando o colaborador tem foto) + "PARABÉNS!" */}
+            <div className="flex items-center">
               <Avatar url={dados.fotoUrl} />
               <span
                 className="-ml-6 whitespace-nowrap rounded-r-full py-[1vh] pl-10 pr-8 text-[clamp(1.2rem,2vw,2.4rem)] font-extrabold italic tracking-wide"
@@ -117,11 +121,19 @@ export default function AnuncioGanhador({
             </div>
 
             <h2
-              className="line-clamp-2 break-words text-[clamp(2.4rem,4.4vw,5.4rem)] font-extrabold leading-[1.05]"
+              className="mt-[1.5vh] line-clamp-2 break-words text-[clamp(2.2rem,4vw,4.8rem)] font-extrabold leading-[1.05]"
               style={{ color: 'var(--cor-texto)', textShadow: '0 4px 18px rgba(0,0,0,0.35)' }}
             >
               {dados.nome}
             </h2>
+            {dados.setor?.trim() && (
+              <p
+                className="mt-[0.8vh] line-clamp-1 break-words text-[clamp(1.2rem,2vw,2.4rem)] font-semibold"
+                style={textoOuro()}
+              >
+                Setor {dados.setor.trim()}
+              </p>
+            )}
 
             <div
               className="my-[1.8vh] h-[3px] w-full max-w-xl rounded-full"
@@ -134,14 +146,14 @@ export default function AnuncioGanhador({
                   {dados.matricula ? 'Matrícula Sorteada' : 'Número Sorteado'}
                 </p>
                 <div className="mt-[1.2vh] flex items-center gap-[2vw]">
-                  <IconePresente className="h-[9vh] w-[9vh] shrink-0" />
+                  <IconePresente className="h-[7vh] w-[7vh] shrink-0" />
                   <div
                     className="rounded-full border-[3px] px-[3vw] py-[0.6vh]"
                     style={{ borderColor: OURO, background: 'rgba(0,0,0,0.25)', boxShadow: BRILHO }}
                   >
                     <span
                       className={`block ${
-                        numeroLongo ? 'break-all text-[clamp(2rem,3.6vw,4.4rem)]' : 'text-[clamp(3.2rem,6.2vw,7.4rem)]'
+                        numeroLongo ? 'break-all text-[clamp(2rem,3.4vw,4.2rem)]' : 'text-[clamp(3rem,5.6vw,6.6rem)]'
                       } font-black leading-none tabular-nums tracking-wide`}
                       style={textoOuro()}
                     >
@@ -195,18 +207,24 @@ function Faixa({ subtitulo }: { subtitulo: string }) {
   )
 }
 
+/** Foto do ganhador: grande quando existe; sem foto, o ícone num círculo menor. */
 function Avatar({ url }: { url: string | null }) {
   const [falhou, setFalhou] = useState(false)
+  const temFoto = !!url && !falhou
   return (
     <div
-      className="relative z-10 h-[12vh] w-[12vh] shrink-0 rounded-full p-[5px]"
+      className={`relative z-10 shrink-0 rounded-full p-[5px] ${
+        temFoto
+          ? 'h-[min(18vh,26vw)] w-[min(18vh,26vw)] lg:h-[min(18vh,13vw)] lg:w-[min(18vh,13vw)]'
+          : 'h-[min(11vh,16vw)] w-[min(11vh,16vw)] lg:h-[min(11vh,8vw)] lg:w-[min(11vh,8vw)]'
+      }`}
       style={{ background: GRADIENTE_OURO, boxShadow: BRILHO }}
     >
       <div
         className="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
         style={{ background: 'var(--cor-fundo)' }}
       >
-        {url && !falhou ? (
+        {temFoto ? (
           <img src={url} alt="" onError={() => setFalhou(true)} className="h-full w-full object-cover" />
         ) : (
           <svg viewBox="0 0 64 64" className="h-[62%] w-[62%]" aria-hidden="true">
