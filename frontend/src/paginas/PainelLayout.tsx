@@ -20,8 +20,8 @@ export function usePainel(): ContextoPainel {
 }
 
 // A ordem define a tela inicial de cada perfil: a primeira que ele pode ver.
-// Admin e Organizador caem na Visão geral; Sorteador em Sorteio. A Recepção
-// (check-in e consulta) é pública, em /recepcao.
+// Admin e Organizador caem na Visão geral; Sorteador em Sorteio; a conta
+// Recepção no Credenciamento. O check-in e a consulta públicos ficam em /recepcao.
 export const ABAS: { para: string; rotulo: string; permissao: Permissao; icone: NomeIcone; titulo?: string }[] = [
   { para: 'visao-geral', rotulo: 'Visão geral', permissao: 'consultar_relatorios', icone: 'painel' },
   { para: 'sorteio', rotulo: 'Sorteio', permissao: 'controlar_sorteio', icone: 'sorteio' },

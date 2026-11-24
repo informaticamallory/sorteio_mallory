@@ -47,7 +47,7 @@ export default function Eventos() {
   }
 
   // Equipe que não administra eventos e só tem um evento: vai direto à
-  // própria tela (Operador -> Sorteio, Recepção -> Recepção, Check-in -> Credenciamento).
+  // própria tela (Operador -> Sorteio, Recepção -> Credenciamento).
   if (eventos?.length === 1 && !pode('gerenciar_eventos')) {
     return <Navigate to={`/eventos/${eventos[0].id}`} replace />
   }

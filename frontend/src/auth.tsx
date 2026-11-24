@@ -46,8 +46,9 @@ export const ROTULO_PAPEL: Record<Papel, string> = {
 export function destinoInicial(usuario: Usuario): string {
   if (usuario.deve_trocar_senha) return '/trocar-senha'
   if (usuario.papel === 'COLABORADOR') return '/minha-area'
-  // Check-in e consulta são públicos; a conta Recepção cai na mesma tela.
-  if (usuario.papel === 'RECEPCAO') return '/recepcao'
+  // Recepção (e os demais perfis): lista de eventos. Com um só evento entra
+  // direto nele, e o painel abre na primeira aba do perfil, que para a
+  // Recepção é o Credenciamento. O check-in público segue em /recepcao.
   return '/eventos'
 }
 
