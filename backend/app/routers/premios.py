@@ -195,13 +195,15 @@ def reordenar(
 
 
 # ------------------------------------------------------------------ importacao
-def _nomes_existentes(db: Session, evento: Event) -> set[str]:
-    return {
-        normalizar_busca(nome)
-        for nome in db.scalars(
-            select(Prize.nome).where(Prize.event_id == evento.id, Prize.excluido_em.is_(None))
-        ).all()
-    }
+def _premios_existentes(db: Session, evento: Event) -> dict[str, Prize]:
+    """Nome normalizado -> premio (nao excluido) do evento."""
+    premios = db.scalars(
+        select(Prize).where(Prize.event_id == evento.id, Prize.excluido_em.is_(None)).order_by(Prize.id)
+    ).all()
+    saida: dict[str, Prize] = {}
+    for premio in premios:
+        saida.setdefault(normalizar_busca(premio.nome), premio)
+    return saida
 
 
 @router.post(
@@ -219,11 +221,12 @@ def previa_importacao(
     if len(conteudo) > settings.max_planilha_bytes:
         limite = settings.max_planilha_bytes // (1024 * 1024)
         raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, f"Planilha maior que {limite} MB")
+    existentes = {chave: p.quantidade for chave, p in _premios_existentes(db, evento).items()}
     try:
-        linhas = importacao_premios.previa(conteudo, arquivo.filename or "", _nomes_existentes(db, evento))
+        linhas, avisos = importacao_premios.previa(conteudo, arquivo.filename or "", existentes)
     except ValueError as exc:
         raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
-    return PreviaImportPremios(linhas=linhas)
+    return PreviaImportPremios(linhas=linhas, avisos=avisos)
 
 
 @router.post("/importar/confirmar", response_model=ImportarPremiosOut)
@@ -233,21 +236,39 @@ def confirmar_importacao(
     db: Session = Depends(get_db),
     user: User = Depends(CADASTRAR),
 ) -> ImportarPremiosOut:
-    """Cria os premios da planilha, no fim da lista. Quem ja existe fica de fora."""
-    existentes = _nomes_existentes(db, evento)
+    """Cria os premios da planilha, no fim da lista. Quem ja existe fica de
+    fora, ou tem a quantidade atualizada se `atualizar_existentes`."""
+    existentes = _premios_existentes(db, evento)
     ordem = (
         db.scalar(select(Prize.ordem).where(Prize.event_id == evento.id).order_by(Prize.ordem.desc()).limit(1))
         or 0
     )
     criados: list[str] = []
+    atualizados: list[dict] = []
+    nao_atualizados: list[str] = []
     ignorados = 0
+    vistos: set[str] = set()
     for item in dados.linhas:
         nome = item.nome.strip()
         chave = normalizar_busca(nome)
-        if not nome or chave in existentes:
+        if not nome or chave in vistos:
             ignorados += 1
             continue
-        existentes.add(chave)
+        vistos.add(chave)
+        existente = existentes.get(chave)
+        if existente is not None:
+            if not dados.atualizar_existentes or existente.quantidade == item.quantidade:
+                ignorados += 1
+                continue
+            try:
+                # Mesma regra da edicao: nunca remove unidade ja sorteada.
+                _sincronizar_unidades(db, existente, item.quantidade)
+            except HTTPException:
+                nao_atualizados.append(existente.nome)
+                continue
+            atualizados.append({"premio": existente.nome, "de": existente.quantidade, "para": item.quantidade})
+            existente.quantidade = item.quantidade
+            continue
         ordem += 1
         premio = Prize(
             event_id=evento.id,
@@ -266,11 +287,22 @@ def confirmar_importacao(
             event_id=evento.id,
             usuario_id=user.id,
             acao="premios_importados",
-            detalhes={"criados": len(criados), "ignorados": ignorados, "premios": criados[:200]},
+            detalhes={
+                "criados": len(criados),
+                "ignorados": ignorados,
+                "premios": criados[:200],
+                "quantidades_atualizadas": atualizados[:200],
+                "nao_atualizados": nao_atualizados[:200],
+            },
         )
     )
     db.commit()
-    return ImportarPremiosOut(criados=len(criados), ignorados=ignorados)
+    return ImportarPremiosOut(
+        criados=len(criados),
+        ignorados=ignorados,
+        atualizados=len(atualizados),
+        nao_atualizados=nao_atualizados,
+    )
 
 
 @modelos.get("/modelo.csv")

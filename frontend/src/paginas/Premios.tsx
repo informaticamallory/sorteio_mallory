@@ -370,6 +370,14 @@ interface LinhaPrevia {
   quantidade: number
   erros: string[]
   ja_existe: boolean
+  quantidade_atual: number | null
+}
+
+interface ResultadoImportacao {
+  criados: number
+  ignorados: number
+  atualizados: number
+  nao_atualizados: string[]
 }
 
 /** Importação por planilha: lê, mostra a prévia e só grava ao confirmar. */
@@ -385,6 +393,8 @@ function ModalImportarPremios({
   aoConcluir: (mensagem: string) => Promise<void>
 }) {
   const [linhas, setLinhas] = useState<LinhaPrevia[] | null>(null)
+  const [avisos, setAvisos] = useState<string[]>([])
+  const [atualizar, setAtualizar] = useState(false)
   const [erro, setErro] = useState('')
   const [lendo, setLendo] = useState(false)
   const [gravando, setGravando] = useState(false)
@@ -392,6 +402,8 @@ function ModalImportarPremios({
   useEffect(() => {
     if (!aberto) {
       setLinhas(null)
+      setAvisos([])
+      setAtualizar(false)
       setErro('')
     }
   }, [aberto])
@@ -401,33 +413,45 @@ function ModalImportarPremios({
     setErro('')
     setLendo(true)
     try {
-      const previa = await enviarArquivo<{ linhas: LinhaPrevia[] }>(`/api/events/${eventId}/premios/importar/previa`, arquivo)
+      const previa = await enviarArquivo<{ linhas: LinhaPrevia[]; avisos?: string[] }>(
+        `/api/events/${eventId}/premios/importar/previa`,
+        arquivo,
+      )
       setLinhas(previa.linhas)
+      setAvisos(previa.avisos ?? [])
     } catch (e) {
       setLinhas(null)
+      setAvisos([])
       setErro(e instanceof Error ? e.message : 'Falha ao ler a planilha')
     } finally {
       setLendo(false)
     }
   }
 
-  const importaveis = linhas?.filter((l) => l.erros.length === 0 && !l.ja_existe) ?? []
+  const validas = linhas?.filter((l) => l.erros.length === 0) ?? []
+  const novas = validas.filter((l) => !l.ja_existe)
+  // Já cadastrados cuja quantidade na planilha é diferente da atual.
+  const divergentes = validas.filter((l) => l.ja_existe && l.quantidade_atual !== null && l.quantidade_atual !== l.quantidade)
+  const enviar = atualizar ? [...novas, ...divergentes] : novas
 
   async function confirmar() {
-    if (importaveis.length === 0) return
+    if (enviar.length === 0) return
     setGravando(true)
     setErro('')
     try {
-      const feito = await requisitar<{ criados: number; ignorados: number }>(
-        `/api/events/${eventId}/premios/importar/confirmar`,
-        {
-          metodo: 'POST',
-          corpo: { linhas: importaveis.map((l) => ({ nome: l.nome, descricao: l.descricao, quantidade: l.quantidade })) },
+      const feito = await requisitar<ResultadoImportacao>(`/api/events/${eventId}/premios/importar/confirmar`, {
+        metodo: 'POST',
+        corpo: {
+          linhas: enviar.map((l) => ({ nome: l.nome, descricao: l.descricao, quantidade: l.quantidade })),
+          atualizar_existentes: atualizar,
         },
-      )
-      await aoConcluir(
-        `${feito.criados} prêmio(s) importado(s)${feito.ignorados ? `; ${feito.ignorados} já existia(m) e ficou(aram) de fora` : ''}. Coloque as imagens em Editar.`,
-      )
+      })
+      const partes = [`${feito.criados} prêmio(s) importado(s)`]
+      if (feito.atualizados) partes.push(`${feito.atualizados} com a quantidade atualizada`)
+      if (feito.ignorados) partes.push(`${feito.ignorados} já existia(m) e ficou(aram) como estava(m)`)
+      if (feito.nao_atualizados.length)
+        partes.push(`não deu para diminuir (já sorteado): ${feito.nao_atualizados.join(', ')}`)
+      await aoConcluir(`${partes.join('; ')}. Coloque as imagens em Editar.`)
     } catch (e) {
       setErro(e instanceof Error ? e.message : 'Falha ao importar')
     } finally {
@@ -441,8 +465,8 @@ function ModalImportarPremios({
         <div className="rounded-lg bg-slate-50 p-4 text-sm text-slate-600">
           <p className="mb-1 font-medium text-slate-800">Colunas: nome (obrigatória), descrição e quantidade</p>
           <p>
-            Quantidade em branco vale 1. Prêmios com o mesmo nome de um já cadastrado ficam de fora, para não
-            duplicar. As imagens são colocadas depois, em Editar.
+            Quantidade em branco vale 1. Prêmios com o mesmo nome de um já cadastrado não são duplicados; se a
+            quantidade for diferente, você pode atualizá-la. As imagens são colocadas depois, em Editar.
           </p>
           <div className="mt-3 flex flex-wrap gap-2">
             <button type="button" className="btn-neutro px-3 py-1.5" onClick={() => void baixarArquivo('/api/premios/modelo.xlsx', 'modelo-premios.xlsx')}>
@@ -469,6 +493,30 @@ function ModalImportarPremios({
         </div>
 
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        {avisos.map((a) => (
+          <Aviso key={a} tipo="atencao">
+            {a}
+          </Aviso>
+        ))}
+
+        {divergentes.length > 0 && (
+          <label className="flex items-start gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-sm text-amber-900">
+            <input
+              type="checkbox"
+              className="mt-0.5 h-4 w-4 accent-marca-600"
+              checked={atualizar}
+              onChange={(e) => setAtualizar(e.target.checked)}
+            />
+            <span>
+              <span className="font-semibold">
+                Atualizar a quantidade de {divergentes.length} prêmio(s) já cadastrado(s)
+              </span>
+              <span className="block text-xs text-amber-800">
+                Usa a quantidade da planilha. Unidades já sorteadas nunca são removidas.
+              </span>
+            </span>
+          </label>
+        )}
 
         {linhas && (
           <div className="max-h-80 overflow-auto rounded-lg border border-slate-200">
@@ -494,7 +542,15 @@ function ModalImportarPremios({
                       {l.erros.length > 0 ? (
                         <span className="text-rose-700">{l.erros.join('; ')}</span>
                       ) : l.ja_existe ? (
-                        <span className="text-amber-700">Já cadastrado (fica de fora)</span>
+                        l.quantidade_atual !== null && l.quantidade_atual !== l.quantidade ? (
+                          <span className="text-amber-700">
+                            {atualizar
+                              ? `Já cadastrado: ${l.quantidade_atual} → ${l.quantidade} un.`
+                              : `Já cadastrado com ${l.quantidade_atual} un. (fica como está)`}
+                          </span>
+                        ) : (
+                          <span className="text-slate-500">Já cadastrado (fica de fora)</span>
+                        )
                       ) : (
                         <span className="text-emerald-700">Pronto para importar</span>
                       )}
@@ -510,8 +566,12 @@ function ModalImportarPremios({
           <button type="button" className="btn-neutro" onClick={aoFechar}>
             Cancelar
           </button>
-          <button type="button" className="btn-primario" disabled={importaveis.length === 0 || gravando} onClick={() => void confirmar()}>
-            {gravando ? 'Importando...' : `Importar ${importaveis.length} prêmio(s)`}
+          <button type="button" className="btn-primario" disabled={enviar.length === 0 || gravando} onClick={() => void confirmar()}>
+            {gravando
+              ? 'Importando...'
+              : atualizar && divergentes.length > 0
+                ? `Importar ${novas.length} e atualizar ${divergentes.length}`
+                : `Importar ${novas.length} prêmio(s)`}
           </button>
         </div>
       </div>

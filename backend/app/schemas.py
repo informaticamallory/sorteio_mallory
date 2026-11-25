@@ -435,10 +435,12 @@ class LinhaImportPremio(BaseModel):
     quantidade: int
     erros: list[str]
     ja_existe: bool
+    quantidade_atual: int | None = None
 
 
 class PreviaImportPremios(BaseModel):
     linhas: list[LinhaImportPremio]
+    avisos: list[str] = []
 
 
 class PremioImportItem(BaseModel):
@@ -449,11 +451,16 @@ class PremioImportItem(BaseModel):
 
 class ImportarPremiosIn(BaseModel):
     linhas: list[PremioImportItem] = Field(min_length=1, max_length=2000)
+    # Premios que ja existem (mesmo nome): atualizar a quantidade em vez de ignorar.
+    atualizar_existentes: bool = False
 
 
 class ImportarPremiosOut(BaseModel):
     criados: int
     ignorados: int
+    atualizados: int = 0
+    # Nao puderam diminuir porque as unidades a remover ja foram sorteadas.
+    nao_atualizados: list[str] = []
 
 
 class PremioUpdate(BaseModel):

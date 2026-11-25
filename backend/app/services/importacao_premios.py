@@ -5,7 +5,9 @@ em branco vale 1). A imagem do premio continua sendo colocada na tela.
 
 A previa nao grava nada: aponta erros por linha e premios que ja existem no
 evento (mesmo nome, sem diferenca de maiusculas/acentos), que ficam de fora
-para que importar a mesma planilha duas vezes nao duplique os premios.
+para que importar a mesma planilha duas vezes nao duplique os premios. Se
+quem importa pedir, a quantidade desses que ja existem e atualizada (sem
+nunca remover unidade ja sorteada).
 """
 
 from __future__ import annotations
@@ -27,6 +29,15 @@ SINONIMOS = {
 }
 
 
+# "Quantidade de prêmios", "Qtd. total", "Unid."... tambem valem.
+PREFIXOS_QUANTIDADE = ("quant", "qtd", "qtde", "qde")
+OUTROS_QUANTIDADE = {"un", "und", "unid", "unidade", "estoque"}
+
+
+def _e_quantidade(chave: str) -> bool:
+    return chave.startswith(PREFIXOS_QUANTIDADE) or chave in OUTROS_QUANTIDADE
+
+
 def _mapear(cabecalho: list[str]) -> dict[str, int]:
     mapa: dict[str, int] = {}
     for indice, bruto in enumerate(cabecalho):
@@ -35,6 +46,9 @@ def _mapear(cabecalho: list[str]) -> dict[str, int]:
             if chave in nomes and campo not in mapa:
                 mapa[campo] = indice
                 break
+        else:
+            if "quantidade" not in mapa and _e_quantidade(chave):
+                mapa["quantidade"] = indice
     return mapa
 
 
@@ -44,17 +58,35 @@ def _celula(linha: list[str], indice: int | None) -> str:
     return str(linha[indice] or "").strip()
 
 
-def previa(conteudo: bytes, nome_arquivo: str, nomes_existentes: set[str]) -> list[dict]:
-    """Linhas lidas, cada uma com `erros` (impede importar) e `ja_existe`."""
+def previa(conteudo: bytes, nome_arquivo: str, existentes: dict[str, int]) -> tuple[list[dict], list[str]]:
+    """(linhas, avisos). Cada linha tem `erros` (impede importar), `ja_existe`
+    e `quantidade_atual` (do premio ja cadastrado com o mesmo nome).
+
+    `existentes`: nome normalizado -> quantidade atual. Os avisos apontam
+    quando a quantidade nao foi lida (coluna nao achada ou toda vazia), para
+    a planilha nao entrar com 1 unidade em tudo sem ninguem perceber.
+    """
     todas = ler_linhas(conteudo, nome_arquivo)
     if not todas:
         raise ValueError("A planilha está vazia.")
     mapa = _mapear([str(c) for c in todas[0]])
+    encontradas = ", ".join(f"'{str(c).strip()}'" for c in todas[0] if str(c).strip()) or "nenhuma"
     if "nome" not in mapa:
-        encontradas = ", ".join(f"'{str(c).strip()}'" for c in todas[0] if str(c).strip()) or "nenhuma"
         raise ValueError(
             "A planilha precisa da coluna 'nome' (o nome do prêmio). "
             f"Colunas encontradas: {encontradas}. Baixe o modelo para conferir."
+        )
+    avisos: list[str] = []
+    if "quantidade" not in mapa:
+        avisos.append(
+            f"Não encontrei a coluna de quantidade (colunas lidas: {encontradas}). "
+            "Todos os prêmios entrariam com 1 unidade. Renomeie a coluna para 'quantidade' e leia de novo."
+        )
+    elif all(not _celula(linha, mapa["quantidade"]) for linha in todas[1:]):
+        coluna = str(todas[0][mapa["quantidade"]]).strip()
+        avisos.append(
+            f"A coluna '{coluna}' está vazia em todas as linhas, então todos entrariam com 1 unidade. "
+            "Se ela tem fórmulas, abra a planilha no Excel, salve e leia de novo."
         )
 
     vistos: dict[str, int] = {}
@@ -93,10 +125,11 @@ def previa(conteudo: bytes, nome_arquivo: str, nomes_existentes: set[str]) -> li
                 "descricao": descricao,
                 "quantidade": quantidade,
                 "erros": erros,
-                "ja_existe": bool(nome) and chave in nomes_existentes,
+                "ja_existe": bool(nome) and chave in existentes,
+                "quantidade_atual": existentes.get(chave) if nome else None,
             }
         )
-    return saida
+    return saida, avisos
 
 
 _CABECALHO = ["nome", "descricao", "quantidade"]

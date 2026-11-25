@@ -44,7 +44,8 @@ def test_previa_e_importacao_csv(cliente, auth):
     feito = cliente.post(
         f"/api/events/{event_id}/premios/importar/confirmar", json={"linhas": validas}, headers=auth
     )
-    assert feito.status_code == 200 and feito.json() == {"criados": 2, "ignorados": 0}
+    assert feito.status_code == 200
+    assert feito.json() == {"criados": 2, "ignorados": 0, "atualizados": 0, "nao_atualizados": []}
     premios = cliente.get(f"/api/events/{event_id}/premios", headers=auth).json()
     assert [(p["nome"], p["quantidade"], len(p["unidades"])) for p in premios] == [
         ("Air Fryer 5L", 10, 10),
@@ -57,7 +58,39 @@ def test_previa_e_importacao_csv(cliente, auth):
     repetido = cliente.post(
         f"/api/events/{event_id}/premios/importar/confirmar", json={"linhas": validas}, headers=auth
     )
-    assert repetido.json() == {"criados": 0, "ignorados": 2}
+    assert repetido.json() == {"criados": 0, "ignorados": 2, "atualizados": 0, "nao_atualizados": []}
+
+
+def test_cabecalho_de_quantidade_variado_e_aviso_quando_nao_lida(cliente, auth):
+    event_id = _evento([])
+    for cabecalho in ("Quantidade de prêmios", "QTD. TOTAL", "Unid.", "Qtde"):
+        previa = _previa(cliente, auth, event_id, f"nome;{cabecalho}\r\nTV;4\r\n".encode(), "p.csv").json()
+        assert previa["linhas"][0]["quantidade"] == 4, cabecalho
+        assert previa["avisos"] == []
+    sem_coluna = _previa(cliente, auth, event_id, b"nome;valor\r\nTV;1500\r\n", "p.csv").json()
+    assert sem_coluna["linhas"][0]["quantidade"] == 1
+    assert "Não encontrei a coluna de quantidade" in sem_coluna["avisos"][0]
+    # Formula sem valor salvo chega vazia: avisa em vez de virar 1 em silencio.
+    vazia = _previa(cliente, auth, event_id, b"nome;quantidade\r\nTV;\r\nFone;\r\n", "p.csv").json()
+    assert "vazia em todas as linhas" in vazia["avisos"][0]
+
+
+def test_reimportar_atualiza_quantidade_dos_que_ja_existem(cliente, auth):
+    event_id = _evento([])
+    url = f"/api/events/{event_id}/premios/importar/confirmar"
+    cliente.post(url, json={"linhas": [{"nome": "TV", "quantidade": 1}, {"nome": "Fone", "quantidade": 5}]}, headers=auth)
+    previa = _previa(cliente, auth, event_id, b"nome;quantidade\r\ntv;3\r\nFone;2\r\n", "p.csv").json()
+    assert [(l["ja_existe"], l["quantidade_atual"]) for l in previa["linhas"]] == [(True, 1), (True, 5)]
+
+    linhas = [{"nome": "tv", "quantidade": 3}, {"nome": "Fone", "quantidade": 2}]
+    sem_marcar = cliente.post(url, json={"linhas": linhas}, headers=auth).json()
+    assert sem_marcar["atualizados"] == 0 and sem_marcar["ignorados"] == 2
+
+    feito = cliente.post(url, json={"linhas": linhas, "atualizar_existentes": True}, headers=auth).json()
+    assert feito == {"criados": 0, "ignorados": 0, "atualizados": 2, "nao_atualizados": []}
+    premios = {p["nome"]: p for p in cliente.get(f"/api/events/{event_id}/premios", headers=auth).json()}
+    assert premios["TV"]["quantidade"] == 3 and len(premios["TV"]["unidades"]) == 3
+    assert premios["Fone"]["quantidade"] == 2 and len(premios["Fone"]["unidades"]) == 2
 
 
 def test_importacao_xlsx_e_coluna_obrigatoria(cliente, auth):
