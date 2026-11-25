@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { baixarArquivo, requisitar } from '../api'
+import { baixarArquivo, enviarArquivo, requisitar } from '../api'
 import { useAuth } from '../auth'
 import Icone, { type NomeIcone } from '../componentes/Icone'
 import { Aviso, ImagemPremio, Modal, Vazio } from '../componentes/ui'
@@ -527,11 +527,25 @@ function ModalEntrega({
   const [pulseira, setPulseira] = useState('')
   const [erro, setErro] = useState('')
   const [enviando, setEnviando] = useState(false)
+  // Foto opcional da entrega (câmera do celular ou arquivo).
+  const [foto, setFoto] = useState<File | null>(null)
+  const [previaFoto, setPreviaFoto] = useState<string | null>(null)
 
   useEffect(() => {
     setPulseira('')
     setErro('')
+    setFoto(null)
   }, [atendimento])
+
+  useEffect(() => {
+    if (!foto) {
+      setPreviaFoto(null)
+      return
+    }
+    const url = URL.createObjectURL(foto)
+    setPreviaFoto(url)
+    return () => URL.revokeObjectURL(url)
+  }, [foto])
 
   if (!atendimento) return null
   const { colaborador, premios } = atendimento
@@ -542,10 +556,16 @@ function ModalEntrega({
     setEnviando(true)
     setErro('')
     try {
+      // A foto sobe antes; se falhar, nada é registrado e dá para tentar de novo ou tirar a foto.
+      const fotoUrl = foto ? (await enviarArquivo<{ url: string }>('/api/uploads/imagem', foto)).url : null
       // Uma transação: ou todas as unidades, ou nenhuma (o backend revalida tudo).
       await requisitar(`${base}/entregar`, {
         metodo: 'POST',
-        corpo: { sorteios: premios.map((p) => p.sorteio_id), pulseira_conferida: temPulseira ? pulseira.trim() : null },
+        corpo: {
+          sorteios: premios.map((p) => p.sorteio_id),
+          pulseira_conferida: temPulseira ? pulseira.trim() : null,
+          foto_url: fotoUrl,
+        },
       })
       await aoConcluir(
         premios.length === 1
@@ -606,6 +626,31 @@ function ModalEntrega({
             </p>
           </div>
         ) : null}
+
+        <div>
+          <p className="rotulo">Foto da entrega (opcional)</p>
+          {previaFoto ? (
+            <div className="flex items-center gap-3">
+              <img src={previaFoto} alt="Foto da entrega" className="h-20 w-20 rounded-lg border border-slate-200 object-cover" />
+              <button type="button" className="text-sm font-medium text-rose-700 underline" onClick={() => setFoto(null)}>
+                Remover foto
+              </button>
+            </div>
+          ) : (
+            <label className="btn-neutro inline-flex cursor-pointer">
+              <Icone nome="camera" className="h-4 w-4" />
+              Tirar ou escolher foto
+              <input
+                type="file"
+                accept="image/*"
+                capture="environment"
+                className="sr-only"
+                onChange={(e) => setFoto(e.target.files?.[0] ?? null)}
+              />
+            </label>
+          )}
+          <p className="mt-1 text-xs text-slate-500">Fica guardada no histórico da entrega.</p>
+        </div>
 
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
         <div className="flex flex-col-reverse gap-2 sm:flex-row sm:justify-end">
@@ -1106,6 +1151,16 @@ function HistoricoAtendimentos({
             <dd>{detalhe.atendente}</dd>
             <dt className="text-slate-500">Pulseira conferida</dt>
             <dd className="font-mono">{detalhe.pulseira_conferida ?? '—'}</dd>
+            {detalhe.foto_url && (
+              <>
+                <dt className="text-slate-500">Foto da entrega</dt>
+                <dd>
+                  <a href={detalhe.foto_url} target="_blank" rel="noreferrer" title="Abrir a foto em tamanho maior">
+                    <img src={detalhe.foto_url} alt="Foto da entrega" className="max-h-56 rounded-lg border border-slate-200 object-contain" />
+                  </a>
+                </dd>
+              </>
+            )}
             {detalhe.motivo && (
               <>
                 <dt className="text-slate-500">Justificativa</dt>

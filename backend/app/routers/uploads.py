@@ -12,13 +12,15 @@ router = APIRouter(prefix="/api/uploads", tags=["uploads"])
 
 # Endpoint sincrono de proposito: a validacao/reencode da imagem pelo Pillow e
 # trabalho de CPU e, em `async def`, travaria o event loop (e com ele o telao).
-# Usado por quem cadastra premios, fotos de participantes ou o logo do evento.
+# Usado por quem cadastra premios, fotos de participantes ou o logo do evento,
+# e pela foto opcional da entrega (Central de Entregas).
 @router.post(
     "/imagem",
     dependencies=requer(
         Permissao.CADASTRAR_PREMIOS,
         Permissao.GERENCIAR_PARTICIPANTES,
         Permissao.GERENCIAR_EVENTOS,
+        Permissao.CONFIRMAR_ENTREGA,
         alguma=True,
     ),
 )

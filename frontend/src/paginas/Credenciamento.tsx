@@ -14,7 +14,7 @@ const SITUACOES = [
   { valor: 'todos', rotulo: 'Todos' },
   { valor: 'ausentes', rotulo: 'Ainda não chegaram' },
   { valor: 'presentes', rotulo: 'Presentes' },
-  { valor: 'sem_pulseira', rotulo: 'Sem pulseira' },
+  // { valor: 'sem_pulseira', rotulo: 'Sem pulseira' },
 ]
 
 export default function Credenciamento() {
@@ -108,7 +108,7 @@ export default function Credenciamento() {
             ['Presentes', resumo.presentes],
             ['Ainda não chegaram', resumo.ausentes],
             ['Com pulseira', resumo.com_pulseira],
-            ['Sem pulseira', resumo.sem_pulseira],
+            // ['Sem pulseira', resumo.sem_pulseira],
             ['Cadastro feito', resumo.com_conta],
           ].map(([rotulo, valor]) => (
             <div key={String(rotulo)} className="border-b border-borda px-4 py-3 lg:border-b-0">
@@ -181,10 +181,9 @@ export default function Credenciamento() {
                   {p.setor ? ` · ${p.setor}` : ''}
                 </p>
                 <div className="mt-1 flex flex-wrap gap-1">
-                  {p.pulseira ? (
+                  {/* "Sem pulseira" não aparece mais; só quem tem pulseira mostra o número. */}
+                  {p.pulseira && (
                     <span className="etiqueta bg-slate-100 font-mono text-slate-700">Pulseira {p.pulseira}</span>
-                  ) : (
-                    <span className="etiqueta bg-amber-100 text-amber-800">Sem pulseira</span>
                   )}
                   {p.tem_conta ? (
                     <span className="etiqueta bg-sky-100 text-sky-800">Cadastro feito</span>

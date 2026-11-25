@@ -242,7 +242,7 @@ def premiados(
                 premio_imagem_url=pr.imagem_url,
                 unidade_numero=u.numero,
                 quantidade_premio=pr.quantidade,
-                bloco_numero=b.numero if b else None,
+                bloco_numero=b.numero_exibicao if b else None,
                 sorteado_em=d.criado_em,
                 entregue=d.entregue,
                 entregue_em=d.entregue_em,
@@ -280,7 +280,7 @@ def entregar_lote(
         )
     try:
         for sorteio in sorted(sorteios, key=lambda s: ids.index(s.id)):
-            registrar_entrega(db, sorteio, True, user, dados.pulseira_conferida)
+            registrar_entrega(db, sorteio, True, user, dados.pulseira_conferida, foto_url=dados.foto_url)
         db.commit()
     except RegraDeNegocio as exc:
         db.rollback()
@@ -353,7 +353,7 @@ def _historico_item(db: Session, linha: AuditLog, sorteio: Draw | None) -> Histo
             ganhador = db.get(Participant, sorteio.participant_id)
             matricula = ganhador.matricula if ganhador else None
         bloco = db.get(BlocoSorteio, sorteio.bloco_id) if sorteio.bloco_id else None
-        bloco_numero = bloco.numero if bloco else None
+        bloco_numero = bloco.numero_exibicao if bloco else None
         situacao = (
             "anulado"
             if sorteio.status != StatusSorteio.VALIDO.value
@@ -373,6 +373,7 @@ def _historico_item(db: Session, linha: AuditLog, sorteio: Draw | None) -> Histo
         pulseira_conferida=base.pulseira_conferida,
         motivo=detalhes.get("motivo"),
         situacao_atual=situacao,
+        foto_url=detalhes.get("foto_url"),
     )
 
 

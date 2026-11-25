@@ -198,8 +198,11 @@ def registrar_entrega(
     usuario: User,
     pulseira_conferida: str | None = None,
     motivo: str | None = None,
+    foto_url: str | None = None,
 ) -> Draw:
     """Confirma ou desfaz a entrega de UMA unidade (cada uma tem o proprio registro).
+
+    `foto_url`: foto opcional tirada no balcao (fica no registro da entrega).
 
     Roda dentro da transacao exclusiva da requisicao: dois atendentes
     confirmando a mesma unidade ao mesmo tempo -> o segundo recebe 409.
@@ -273,6 +276,7 @@ def registrar_entrega(
                 "depois": "entregue" if entregue else "pendente",
             },
             **({"motivo": motivo.strip(), "entrega_original": entrega_original} if not entregue else {}),
+            **({"foto_url": foto_url} if entregue and foto_url else {}),
         },
     )
     db.flush()
@@ -396,7 +400,7 @@ def montar_sorteio(
         "estorno_entrega": sorteio.estorno_entrega,
         "draw_anterior_id": sorteio.draw_anterior_id,
         "bloco_id": sorteio.bloco_id,
-        "bloco_numero": bloco.numero if bloco else None,
-        "bloco_nome": bloco.nome if bloco else None,
+        "bloco_numero": bloco.numero_exibicao if bloco else None,
+        "bloco_nome": bloco.nome_exibicao if bloco else None,
         "reaproveitado": False,
     }

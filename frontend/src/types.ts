@@ -138,6 +138,8 @@ export interface HistoricoEntrega {
   pulseira_conferida: string | null
   motivo: string | null
   situacao_atual: 'entregue' | 'pendente' | 'anulado' | null
+  /** Foto opcional tirada na confirmação da entrega. */
+  foto_url?: string | null
 }
 
 export interface FiltrosEntregas {

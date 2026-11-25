@@ -211,6 +211,30 @@ def test_lote_do_mesmo_ganhador_tudo_ou_nada(cliente, auth):
         assert len(db.scalars(select(AuditLog).where(AuditLog.acao == "entrega_registrada")).all()) == 3
 
 
+def test_foto_opcional_da_entrega_fica_no_historico(cliente, auth):
+    from apoio import imagem
+
+    event_id, _pid, sorteios = _evento_com_ganhador(cliente, auth, unidades=2)
+    balcao = cabecalho(conta("ENTREGAS", login="balcao-foto"))
+    url = f"/api/events/{event_id}/recepcao/entregar"
+
+    # A equipe do balcao consegue enviar a foto (e so imagem valida).
+    envio = cliente.post("/api/uploads/imagem", files={"arquivo": ("foto.png", imagem(), "image/png")}, headers=balcao)
+    assert envio.status_code == 200, envio.text
+    foto = envio.json()["url"]
+    # Link externo nao e aceito como foto.
+    externo = cliente.post(url, json={"sorteios": [sorteios[0]["id"]], "foto_url": "https://x.com/a.jpg"}, headers=balcao)
+    assert externo.status_code == 422
+
+    assert cliente.post(url, json={"sorteios": [sorteios[0]["id"]], "foto_url": foto}, headers=balcao).status_code == 200
+    # Sem foto continua funcionando (ela e opcional).
+    assert cliente.post(url, json={"sorteios": [sorteios[1]["id"]]}, headers=balcao).status_code == 200
+
+    historico = cliente.get(f"/api/events/{event_id}/recepcao/historico", headers=auth).json()["itens"]
+    fotos = {h["sorteio_id"]: h["foto_url"] for h in historico if h["acao"] == "entrega_registrada"}
+    assert fotos == {sorteios[0]["id"]: foto, sorteios[1]["id"]: None}
+
+
 def test_lote_de_ganhadores_diferentes_ou_anulado_e_recusado(cliente, auth):
     event_id, participantes, unidades = montar_evento(participantes=2, quantidade_premio=2)
     s1 = _sortear(cliente, auth, event_id, unidades[0], "dif-1")
