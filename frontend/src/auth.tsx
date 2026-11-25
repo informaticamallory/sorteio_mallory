@@ -31,6 +31,7 @@ export type Permissao =
   | 'consultar_atendimentos'
   | 'acompanhar_credenciamento'
   | 'auxiliar_credenciamento'
+  | 'administrar_credenciamento'
   | 'acessar_area_pessoal'
 
 export const ROTULO_PAPEL: Record<Papel, string> = {

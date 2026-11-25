@@ -494,7 +494,8 @@ rota a rota, perfil a perfil. Uma rota nova sem decisão de acesso faz o teste f
 | Iniciar/pausar/finalizar blocos, sortear, telão | ✔ | se autorizado | ✔ | — | — | — |
 | Consultar resultados e histórico de sorteios | ✔ | ✔ | ✔ | — | — | — |
 | Visão geral, relatório e exportações | ✔ | ✔ | — | — | — | — |
-| Credenciamento: presença, pulseira, liberar novo cadastro | ✔ | ✔ | — | ✔ | — | — |
+| Credenciamento: confirmar e desfazer presença | ✔ | ✔ | — | ✔ | — | — |
+| Credenciamento: pulseira e liberar novo cadastro | ✔ | — | — | — | — | — |
 | Central de Entregas: localizar, confirmar, histórico | ✔ | ✔ | — | ✔ | ✔ | — |
 | Desfazer entrega (com justificativa) | ✔ | ✔ | — | — | — | — |
 | Exportar histórico de entregas | ✔ | ✔ | — | — | — | — |

@@ -117,8 +117,9 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     # credenciamento (admin, RH e Recepcao)
     ("GET", f"{E}/credenciamento/resumo"): {A, O, R},
     ("GET", f"{E}/credenciamento/participantes"): {A, O, R},
-    ("POST", f"{E}/credenciamento/participantes/{{participant_id}}/pulseira"): {A, O, R},
-    ("POST", f"{E}/credenciamento/participantes/{{participant_id}}/liberar-cadastro"): {A, O, R},
+    # pulseira e liberar novo cadastro: so o admin
+    ("POST", f"{E}/credenciamento/participantes/{{participant_id}}/pulseira"): {A},
+    ("POST", f"{E}/credenciamento/participantes/{{participant_id}}/liberar-cadastro"): {A},
     # usuarios
     ("GET", "/api/usuarios"): {A},
     ("POST", "/api/usuarios"): {A},
@@ -649,13 +650,21 @@ def test_organizador_acompanha_credenciamento_marca_presenca_e_entrega_pulseira(
         f"/api/events/{event_id}/participantes/{ids[3]}/presenca", json={"presente": True}, headers=ent
     ).status_code == 403
 
+    # Pulseira e liberar novo cadastro: so o admin (o RH e a Recepcao so marcam presenca).
     url = f"{base}/participantes/{ids[1]}/pulseira"
-    assert cliente.post(url, json={"pulseira": "0042"}, headers=ck).json()["pulseira"] == "0042"
-    assert cliente.post(url, json={"pulseira": "0043"}, headers=ck).status_code == 422  # troca sem motivo
-    trocada = cliente.post(url, json={"pulseira": "0043", "motivo": "Pulseira rasgou"}, headers=ck)
+    assert cliente.post(url, json={"pulseira": "0042"}, headers=ck).status_code == 403
+    assert cliente.post(url, json={"pulseira": "0042"}, headers=rec).status_code == 403
+    assert cliente.post(url, json={"pulseira": "0042"}, headers=auth).json()["pulseira"] == "0042"
+    assert cliente.post(url, json={"pulseira": "0043"}, headers=auth).status_code == 422  # troca sem motivo
+    trocada = cliente.post(url, json={"pulseira": "0043", "motivo": "Pulseira rasgou"}, headers=auth)
     assert trocada.status_code == 200
-    ocupada = cliente.post(f"{base}/participantes/{ids[2]}/pulseira", json={"pulseira": "0043"}, headers=ck)
+    ocupada = cliente.post(f"{base}/participantes/{ids[2]}/pulseira", json={"pulseira": "0043"}, headers=auth)
     assert ocupada.status_code == 409
+    # Desfazer a presenca continua com quem confirma.
+    desfeita = cliente.post(
+        f"/api/events/{event_id}/participantes/{ids[2]}/presenca", json={"presente": False}, headers=rec
+    )
+    assert desfeita.status_code == 200 and desfeita.json()["presente"] is False
 
     acoes = [
         (r["acao"], r["detalhes"].get("motivo"))

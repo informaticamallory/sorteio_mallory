@@ -336,17 +336,20 @@ def _liberar(cliente, cab, event_id, pid, motivo="Esqueceu a senha"):
     )
 
 
-def test_organizador_libera_novo_cadastro_e_derruba_a_sessao_antiga(cliente, auth):
+def test_admin_libera_novo_cadastro_e_derruba_a_sessao_antiga(cliente, auth):
     event_id, participantes, _ = montar_evento(participantes=1)
     configurar_evento(event_id)
-    checkin = cabecalho(conta("ORGANIZADOR"))
+    organizador = cabecalho(conta("ORGANIZADOR"))
     with session_scope() as db:
         db.get(Participant, participantes[0]).pulseira = "P-1"
     primeiro = autocadastrar(cliente, auth, event_id, participantes[0], "00001")
     antigo = {"Authorization": f"Bearer {primeiro['access_token']}"}
 
-    assert _liberar(cliente, checkin, event_id, participantes[0], motivo="abc").status_code == 422
-    liberado = _liberar(cliente, checkin, event_id, participantes[0], motivo="Cadastro feito por outra pessoa")
+    # Liberar novo cadastro e so do admin.
+    motivo = "Cadastro feito por outra pessoa"
+    assert _liberar(cliente, organizador, event_id, participantes[0], motivo=motivo).status_code == 403
+    assert _liberar(cliente, auth, event_id, participantes[0], motivo="abc").status_code == 422
+    liberado = _liberar(cliente, auth, event_id, participantes[0], motivo=motivo)
     assert liberado.status_code == 200
     # A pulseira foi entregue pelo check-in: continua com o participante.
     assert liberado.json()["tem_conta"] is False and liberado.json()["pulseira"] == "P-1"

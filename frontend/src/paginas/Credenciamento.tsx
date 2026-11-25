@@ -29,7 +29,6 @@ export default function Credenciamento() {
   const [numeroPagina, setNumeroPagina] = useState(1)
   const [carregando, setCarregando] = useState(false)
   const [erro, setErro] = useState('')
-  const [pulseiraDe, setPulseiraDe] = useState<Credenciado | null>(null)
   const [liberarDe, setLiberarDe] = useState<Credenciado | null>(null)
   const sequencia = useRef(0)
 
@@ -75,7 +74,9 @@ export default function Credenciamento() {
     }
   }
 
+  // Equipe: só confirma e desfaz presença. Liberar novo cadastro é do admin.
   const auxilia = pode('auxiliar_credenciamento')
+  const administra = pode('administrar_credenciamento')
   const linkCadastro = `${window.location.origin}/cadastro/${evento.id}`
 
   return (
@@ -95,7 +96,7 @@ export default function Credenciamento() {
           )}
           <p className="mt-1 text-xs text-slate-500">
             O colaborador informa matrícula, nome e sobrenome, pulseira, foto e senha. Só vale o
-            primeiro cadastro: para refazer, use “Liberar novo cadastro” depois de conferir o crachá.
+            primeiro cadastro: para refazer, um administrador usa “Liberar novo cadastro” depois de conferir o crachá.
           </p>
         </div>
       </section>
@@ -190,26 +191,34 @@ export default function Credenciamento() {
                   ) : (
                     <span className="etiqueta bg-slate-100 text-slate-600">Sem cadastro</span>
                   )}
+                  {p.presente ? (
+                    <span className="etiqueta bg-emerald-100 text-emerald-800">
+                      <Icone nome="check" className="h-3.5 w-3.5" /> Presente
+                    </span>
+                  ) : (
+                    <span className="etiqueta bg-slate-100 text-slate-600">Ainda não chegou</span>
+                  )}
                   {!p.participando && <span className="etiqueta bg-rose-100 text-rose-800">Fora do sorteio</span>}
                 </div>
               </div>
-              {auxilia && (
+              {(auxilia || administra) && (
                 <div className="flex w-full shrink-0 flex-wrap gap-2 sm:w-auto">
-                  {p.tem_conta && (
+                  {/* Liberar novo cadastro: só o admin. */}
+                  {administra && p.tem_conta && (
                     <button type="button" className="btn-neutro px-3 py-1.5" onClick={() => setLiberarDe(p)}>
                       Liberar novo cadastro
                     </button>
                   )}
-                  <button type="button" className="btn-neutro px-3 py-1.5" onClick={() => setPulseiraDe(p)}>
-                    {p.pulseira ? 'Trocar pulseira' : 'Entregar pulseira'}
-                  </button>
-                  <button
-                    type="button"
-                    className={p.presente ? 'btn-neutro px-3 py-1.5' : 'btn-primario px-3 py-1.5'}
-                    onClick={() => void alternarPresenca(p)}
-                  >
-                    {p.presente ? <><Icone nome="check" className="h-4 w-4" /> Presente</> : 'Confirmar presença'}
-                  </button>
+                  {auxilia &&
+                    (p.presente ? (
+                      <button type="button" className="btn-neutro px-3 py-1.5" onClick={() => void alternarPresenca(p)}>
+                        Desfazer presença
+                      </button>
+                    ) : (
+                      <button type="button" className="btn-primario px-3 py-1.5" onClick={() => void alternarPresenca(p)}>
+                        <Icone nome="check" className="h-4 w-4" /> Confirmar presença
+                      </button>
+                    ))}
                 </div>
               )}
             </li>
@@ -240,16 +249,6 @@ export default function Credenciamento() {
           </button>
         </nav>
       )}
-
-      <ModalPulseira
-        participante={pulseiraDe}
-        base={base}
-        aoFechar={() => setPulseiraDe(null)}
-        aoSalvar={async () => {
-          setPulseiraDe(null)
-          await Promise.all([carregar(), carregarResumo()])
-        }}
-      />
 
       <ModalLiberar
         participante={liberarDe}
@@ -350,103 +349,6 @@ function ModalLiberar({
           </button>
           <button type="submit" className="btn-perigo" disabled={!conferido || motivo.trim().length < 5 || enviando}>
             {enviando ? 'Liberando...' : 'Liberar'}
-          </button>
-        </div>
-      </form>
-    </Modal>
-  )
-}
-
-function ModalPulseira({
-  participante,
-  base,
-  aoFechar,
-  aoSalvar,
-}: {
-  participante: Credenciado | null
-  base: string
-  aoFechar: () => void
-  aoSalvar: () => Promise<void>
-}) {
-  const [pulseira, setPulseira] = useState('')
-  const [motivo, setMotivo] = useState('')
-  const [erro, setErro] = useState('')
-
-  useEffect(() => {
-    setPulseira('')
-    setMotivo('')
-    setErro('')
-  }, [participante])
-
-  if (!participante) return null
-  const troca = participante.pulseira !== null
-
-  async function salvar(e: React.FormEvent) {
-    e.preventDefault()
-    if (!participante) return
-    setErro('')
-    try {
-      await requisitar(`${base}/participantes/${participante.id}/pulseira`, {
-        metodo: 'POST',
-        corpo: { pulseira: pulseira.trim(), motivo: troca ? motivo.trim() : null },
-      })
-      await aoSalvar()
-    } catch (erroSalvar) {
-      setErro(erroSalvar instanceof Error ? erroSalvar.message : 'Falha ao registrar a pulseira')
-    }
-  }
-
-  return (
-    <Modal titulo={troca ? 'Trocar pulseira' : 'Entregar pulseira'} aberto aoFechar={aoFechar}>
-      <form onSubmit={salvar} className="space-y-4">
-        <p className="text-sm text-slate-600">
-          <strong>{participante.nome}</strong> · matrícula{' '}
-          <span className="font-mono">{participante.matricula}</span>
-          {troca && (
-            <>
-              <br />
-              Pulseira atual: <span className="font-mono">{participante.pulseira}</span>
-            </>
-          )}
-        </p>
-        <div>
-          <label className="rotulo" htmlFor="nova-pulseira">
-            Número da pulseira
-          </label>
-          <input
-            id="nova-pulseira"
-            className="campo font-mono text-lg uppercase"
-            required
-            autoFocus
-            autoComplete="off"
-            maxLength={40}
-            value={pulseira}
-            onChange={(e) => setPulseira(e.target.value)}
-          />
-        </div>
-        {troca && (
-          <div>
-            <label className="rotulo" htmlFor="motivo-troca">
-              Motivo da troca (fica registrado)
-            </label>
-            <input
-              id="motivo-troca"
-              className="campo"
-              required
-              minLength={5}
-              value={motivo}
-              onChange={(e) => setMotivo(e.target.value)}
-              placeholder="Ex.: pulseira rasgou"
-            />
-          </div>
-        )}
-        {erro && <Aviso tipo="erro">{erro}</Aviso>}
-        <div className="flex justify-end gap-2">
-          <button type="button" className="btn-neutro" onClick={aoFechar}>
-            Cancelar
-          </button>
-          <button type="submit" className="btn-primario">
-            Salvar
           </button>
         </div>
       </form>

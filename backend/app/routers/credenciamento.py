@@ -30,7 +30,9 @@ from ..services.erros import RegraDeNegocio
 router = APIRouter(prefix="/api/events/{event_id}/credenciamento", tags=["credenciamento"])
 
 ACOMPANHAR = requer(Permissao.ACOMPANHAR_CREDENCIAMENTO)
-AUXILIAR = exigir_permissao(Permissao.AUXILIAR_CREDENCIAMENTO)
+# Presenca (AUXILIAR_CREDENCIAMENTO) fica na rota de participantes.
+# Pulseira e liberar novo cadastro: so o admin (a equipe so confirma presenca).
+ADMINISTRAR = exigir_permissao(Permissao.ADMINISTRAR_CREDENCIAMENTO)
 
 
 def _saida(p: Participant) -> CredenciadoOut:
@@ -110,7 +112,7 @@ def atribuir_pulseira(
     dados: PulseiraCredenciamentoIn,
     evento: Event = Depends(evento_atual),
     db: Session = Depends(get_db),
-    user: User = Depends(AUXILIAR),
+    user: User = Depends(ADMINISTRAR),
 ) -> CredenciadoOut:
     """Entrega ou troca a pulseira. A troca exige motivo e fica na auditoria."""
     participante = db.get(Participant, participant_id)
@@ -165,7 +167,7 @@ def liberar_cadastro(
     dados: LiberarCadastroIn,
     evento: Event = Depends(evento_atual),
     db: Session = Depends(get_db),
-    user: User = Depends(AUXILIAR),
+    user: User = Depends(ADMINISTRAR),
 ) -> CredenciadoOut:
     """Permite refazer o autocadastro (cadastro indevido ou senha esquecida).
 

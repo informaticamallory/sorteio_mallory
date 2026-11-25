@@ -55,7 +55,10 @@ class Permissao(str, enum.Enum):
     CONSULTAR_ATENDIMENTOS = "consultar_atendimentos"
     # Credenciamento
     ACOMPANHAR_CREDENCIAMENTO = "acompanhar_credenciamento"
+    # Confirmar e desfazer presenca.
     AUXILIAR_CREDENCIAMENTO = "auxiliar_credenciamento"
+    # Entregar/trocar pulseira e liberar novo autocadastro. So o ADMIN.
+    ADMINISTRAR_CREDENCIAMENTO = "administrar_credenciamento"
     # Colaborador: somente os proprios dados
     ACESSAR_AREA_PESSOAL = "acessar_area_pessoal"
 

@@ -87,7 +87,8 @@ def test_fluxo_completo_do_evento(cliente, auth):
     assert importado["identificacoes_atualizadas"] == len(PESSOAS)
 
     # 4 a 7. Cada colaborador se cadastra pelo QR Code (matricula, nascimento,
-    # 5 digitos do CPF, foto e senha); a Recepcao faz o check-in e a pulseira.
+    # 5 digitos do CPF, foto e senha); a Recepcao faz o check-in e o admin
+    # registra a pulseira (pulseira e so do admin).
     tokens = {}
     for indice, (nome, matricula, _setor) in enumerate(PESSOAS):
         cpf = cpf_valido(500_000_000 + indice)
@@ -106,7 +107,7 @@ def test_fluxo_completo_do_evento(cliente, auth):
         _ok(cliente.post(
             f"{E}/credenciamento/participantes/{ids[matricula]}/pulseira",
             json={"pulseira": f"MAL-{indice + 1:03d}"},
-            headers=organizador,
+            headers=admin,
         ))
     resumo = _ok(cliente.get(f"{E}/credenciamento/resumo", headers=organizador))
     assert resumo["presentes"] == resumo["com_pulseira"] == resumo["com_conta"] == len(PESSOAS)
