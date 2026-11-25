@@ -423,6 +423,18 @@ class BlocoSorteio(Base):
     # Bloco excluido pelo admin que ja tinha sorteios: some da gestao de blocos,
     # mas continua existindo para o historico (Draw.bloco_id aponta para ele).
     excluido_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    # Ao excluir, o numero sai do caminho (fica negativo, nunca exibido) para os
+    # blocos ativos voltarem a ser 01, 02...; o historico mostra este numero.
+    numero_original: Mapped[int | None] = mapped_column(Integer, nullable=True)
+
+    @property
+    def numero_exibicao(self) -> int:
+        """Numero que aparece nas telas (o original, se o bloco foi excluido)."""
+        return self.numero_original if self.numero_original is not None else self.numero
+
+    @property
+    def nome_exibicao(self) -> str:
+        return f"{self.nome} (excluído)" if self.excluido_em is not None else self.nome
 
     unidades: Mapped[list[PrizeUnit]] = relationship(back_populates="bloco")
     finalizado_por: Mapped[User | None] = relationship()

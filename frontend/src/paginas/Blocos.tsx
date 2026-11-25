@@ -66,6 +66,7 @@ export default function Blocos() {
   const [ocupado, setOcupado] = useState(false)
 
   const [previa, setPrevia] = useState<{ tipo: 'distribuir' | 'remanescentes'; dados: PreviaDistribuicao } | null>(null)
+  const [previaNosBlocos, setPreviaNosBlocos] = useState<PreviaNosBlocos | null>(null)
   const [editando, setEditando] = useState<Bloco | 'novo' | null>(null)
   const [excluindo, setExcluindo] = useState<Bloco | null>(null)
   const [detalhe, setDetalhe] = useState<BlocoDetalhe | null>(null)
@@ -137,6 +138,30 @@ export default function Blocos() {
         `${dados.blocos.length} bloco(s) de remanescentes criado(s).`,
       )
     }
+  }
+
+  async function abrirPreviaNosBlocos() {
+    setOcupado(true)
+    setErro('')
+    setAviso('')
+    try {
+      setPreviaNosBlocos(await requisitar<PreviaNosBlocos>(`${base}/distribuir-nos-blocos/previa`, { metodo: 'POST' }))
+    } catch (e) {
+      setErro(mensagem(e, 'Não foi possível calcular a prévia'))
+    } finally {
+      setOcupado(false)
+    }
+  }
+
+  async function confirmarNosBlocos() {
+    if (!previaNosBlocos) return
+    const dados = previaNosBlocos
+    setPreviaNosBlocos(null)
+    await executar(
+      () => requisitar(`${base}/distribuir-nos-blocos`, { metodo: 'POST', corpo: { misturar } }),
+      `Distribuição nos blocos criados concluída: ${dados.unidades - dados.sobra} unidade(s) em ${dados.blocos.filter((b) => b.unidades > 0).length} bloco(s)` +
+        (dados.sobra > 0 ? `; ${dados.sobra} ficaram sem bloco.` : '.'),
+    )
   }
 
   async function iniciar(bloco: Bloco) {
@@ -229,6 +254,18 @@ export default function Blocos() {
             <button type="button" className="btn-primario" disabled={ocupado} onClick={() => void abrirPrevia('distribuir')}>
               Distribuir automaticamente
             </button>
+            {resumo.blocos.some((b) => b.status === 'PLANEJADO') && (
+              <button
+                type="button"
+                className="btn-neutro"
+                disabled={ocupado}
+                onClick={() => void abrirPreviaNosBlocos()}
+                title="Mantém os blocos planejados que você criou e enche cada um até a capacidade dele"
+              >
+                <Icone nome="blocos" className="h-4 w-4" />
+                Distribuir nos blocos criados
+              </button>
+            )}
             <button
               type="button"
               className="btn-neutro"
@@ -407,6 +444,12 @@ export default function Blocos() {
         aoFechar={() => setPrevia(null)}
         aoConfirmar={() => void confirmarPrevia()}
       />
+      <ModalPreviaNosBlocos
+        previa={previaNosBlocos}
+        misturar={misturar}
+        aoFechar={() => setPreviaNosBlocos(null)}
+        aoConfirmar={() => void confirmarNosBlocos()}
+      />
 
       <ModalBloco
         alvo={editando}
@@ -539,6 +582,67 @@ export default function Blocos() {
 }
 
 // ------------------------------------------------------------------ modais
+interface PreviaNosBlocos {
+  unidades: number
+  blocos: { numero: number; nome: string; unidades: number; capacidade: number }[]
+  sobra: number
+}
+
+function ModalPreviaNosBlocos({
+  previa,
+  misturar,
+  aoFechar,
+  aoConfirmar,
+}: {
+  previa: PreviaNosBlocos | null
+  misturar: boolean
+  aoFechar: () => void
+  aoConfirmar: () => void
+}) {
+  return (
+    <Modal titulo="Prévia: distribuir nos blocos criados" aberto={previa !== null} aoFechar={aoFechar}>
+      {previa && (
+        <div className="space-y-4">
+          <p className="text-sm text-slate-700">
+            <strong>{previa.unidades}</strong> unidade(s) entram nos blocos planejados, na ordem, até a capacidade de
+            cada um{misturar ? ', com os prêmios misturados' : ''}.
+          </p>
+          <ul className="max-h-64 divide-y divide-slate-100 overflow-y-auto rounded-lg border border-slate-200">
+            {previa.blocos.map((b) => (
+              <li key={b.numero} className="flex items-center justify-between gap-3 px-3 py-2 text-sm">
+                <span className="min-w-0 truncate">
+                  <span className="font-semibold text-marca-600">{numeroBloco(b.numero)}</span> · {b.nome}
+                </span>
+                <span className={`shrink-0 tabular-nums ${b.unidades < b.capacidade ? 'text-amber-700' : 'text-slate-700'}`}>
+                  {b.unidades}/{b.capacidade} unidade(s)
+                </span>
+              </li>
+            ))}
+          </ul>
+          {previa.sobra > 0 && (
+            <Aviso tipo="atencao">
+              {previa.sobra} unidade(s) não cabem na capacidade dos blocos e ficarão <strong>sem bloco</strong>. Aumente a
+              capacidade, crie outro bloco ou use “Distribuir automaticamente”.
+            </Aviso>
+          )}
+          <p className="text-xs text-slate-500">
+            Os blocos continuam com o mesmo nome, descrição e capacidade. Blocos iniciados, pausados ou finalizados e
+            unidades já sorteadas não mudam.
+          </p>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn-neutro" onClick={aoFechar}>
+              Cancelar
+            </button>
+            <button type="button" className="btn-primario" onClick={aoConfirmar}>
+              Confirmar distribuição
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
+  )
+}
+
 function ModalPrevia({
   previa,
   aoFechar,

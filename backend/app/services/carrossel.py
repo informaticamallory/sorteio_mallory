@@ -124,7 +124,7 @@ def iniciar(
         "carrossel_iniciado",
         {
             "bloco_id": bloco.id,
-            "numero": bloco.numero,
+            "numero": bloco.numero_exibicao,
             "ganhadores": total,
             "segundos_por_ganhador": duracao,
             "automatico": automatico,

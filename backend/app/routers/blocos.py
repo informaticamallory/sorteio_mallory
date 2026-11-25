@@ -32,6 +32,8 @@ from ..schemas import (
     DistribuicaoIn,
     DistribuicaoOut,
     DistribuirIn,
+    DistribuirNosBlocosIn,
+    PreviaNosBlocosOut,
     FinalizarBlocoIn,
     GanhadorBlocoOut,
     PreviaDistribuicaoOut,
@@ -239,6 +241,30 @@ def distribuir(
         db,
         lambda: servico.distribuir_automaticamente(db, evento, dados.capacidade, user, dados.misturar),
     )
+    return _listar(db, evento)
+
+
+@router.post(
+    "/distribuir-nos-blocos/previa",
+    response_model=PreviaNosBlocosOut,
+    dependencies=requer(Permissao.CONFIGURAR_BLOCOS),
+)
+def previa_nos_blocos(evento: Event = Depends(evento_atual), db: Session = Depends(get_db)) -> PreviaNosBlocosOut:
+    """Simula o preenchimento dos blocos planejados ja criados. Nada e gravado."""
+    try:
+        return PreviaNosBlocosOut(**servico.previa_nos_blocos(db, evento))
+    except RegraDeNegocio as exc:
+        raise HTTPException(exc.status_code, exc.mensagem) from exc
+
+
+@router.post("/distribuir-nos-blocos", response_model=BlocosOut)
+def distribuir_nos_blocos(
+    dados: DistribuirNosBlocosIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(CONFIGURAR),
+) -> BlocosOut:
+    _executar(db, lambda: servico.distribuir_nos_blocos(db, evento, user, dados.misturar))
     return _listar(db, evento)
 
 

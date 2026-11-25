@@ -68,7 +68,7 @@ def notificar_premio(
     if premio is not None and premio.quantidade > 1 and unidade is not None:
         linhas[1] += f" (unidade {unidade.numero} de {premio.quantidade})"
     if bloco is not None:
-        linhas.append(f"Bloco: {bloco.numero:02d}")
+        linhas.append(f"Bloco: {bloco.numero_exibicao:02d}")
     linhas.append("Retire seu prêmio na recepção apresentando sua pulseira.")
     notificacao = Notificacao(
         event_id=evento.id,
@@ -197,7 +197,7 @@ def listar(db: Session, user: User, limite: int = 100) -> list[dict]:
             "sorteio_id": n.draw_id,
             "premio_nome": premio.nome if premio else None,
             "premio_imagem_url": premio.imagem_url if premio else None,
-            "bloco_numero": bloco.numero if bloco else None,
+            "bloco_numero": bloco.numero_exibicao if bloco else None,
             "situacao": _situacao(sorteio),
         }
         for n, evento, sorteio, premio, bloco in linhas

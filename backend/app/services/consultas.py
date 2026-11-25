@@ -51,7 +51,7 @@ def premios_ganhos(db: Session, participantes: list[int]) -> dict[int, list[dict
                 "premio_nome": premio.nome,
                 "premio_imagem_url": premio.imagem_url,
                 "unidade_numero": unidade.numero,
-                "bloco_numero": bloco.numero if bloco else None,
+                "bloco_numero": bloco.numero_exibicao if bloco else None,
                 "entregue": sorteio.entregue,
                 "entregue_em": sorteio.entregue_em,
                 "entregue_por": quem_entregou.nome if quem_entregou else None,

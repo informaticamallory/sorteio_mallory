@@ -41,15 +41,18 @@ def test_excluir_bloco_finalizado_com_sorteio_mantem_o_historico(cliente, auth):
         assert registro.detalhes["sorteios_no_historico"] == 1
         assert registro.detalhes["unidades_liberadas"] == 4
 
-    # O historico continua mostrando o bloco do sorteio.
+    # O historico continua mostrando o bloco do sorteio, marcado como excluido.
     historico = cliente.get("/api/sorteios", params={"event_id": event_id}, headers=auth)
     assert historico.status_code == 200, historico.text
     (item,) = historico.json()["itens"]
-    assert item["id"] == sorteio_id and item["bloco_nome"] == "Bloco 01"
+    assert item["id"] == sorteio_id and item["bloco_nome"] == "Bloco 01 (excluído)"
+    assert item["bloco_numero"] == 1
 
-    # Os que faltavam podem ser distribuidos de novo; o numero 1 nao e reaproveitado.
+    # Os que faltavam podem ser distribuidos de novo e a numeracao recomeca do 01.
     (novo,) = _distribuir(cliente, auth, event_id, 10).json()["blocos"]
-    assert novo["numero"] == 2 and novo["total"] == 4
+    assert novo["numero"] == 1 and novo["nome"] == "Bloco 01" and novo["total"] == 4
+    with session_scope() as db:
+        assert db.get(BlocoSorteio, bloco_id).numero_original == 1
 
 
 def test_excluir_bloco_encerra_a_apresentacao_dele_no_telao(cliente, auth):

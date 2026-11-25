@@ -127,7 +127,7 @@ def _serializar(db: Session, evento: Event, ds: DisplayState) -> dict:
         dados, bloco = carrossel.payload(db, ds, agora)
         payload["carrossel"] = dados
         if bloco is not None:
-            payload["bloco"] = {"numero": bloco.numero, "nome": bloco.nome}
+            payload["bloco"] = {"numero": bloco.numero_exibicao, "nome": bloco.nome_exibicao}
         return payload
     if ds.carrossel_bloco_id is not None and ds.carrossel_desde is not None:
         payload["carrossel_agendado_em"] = ds.carrossel_desde
@@ -138,7 +138,7 @@ def _serializar(db: Session, evento: Event, ds: DisplayState) -> dict:
     bloco_id = sorteio.bloco_id if sorteio is not None else (unidade.bloco_id if unidade else None)
     bloco = db.get(BlocoSorteio, bloco_id) if bloco_id else None
     if bloco is not None:
-        payload["bloco"] = {"numero": bloco.numero, "nome": bloco.nome}
+        payload["bloco"] = {"numero": bloco.numero_exibicao, "nome": bloco.nome_exibicao}
 
     if unidade is not None:
         premio = db.get(Prize, unidade.prize_id)

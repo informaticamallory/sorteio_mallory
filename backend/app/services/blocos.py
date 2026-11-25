@@ -237,15 +237,17 @@ def bloqueio_do_bloco(db: Session, evento: Event, unidade: PrizeUnit) -> str | N
 
 # ------------------------------------------------------------------ criacao e edicao
 def _proximo(db: Session, evento_id: int) -> tuple[int, int]:
-    # Conta tambem os blocos excluidos: o numero do bloco nunca e reaproveitado
-    # (o historico dos sorteios continua citando "Bloco 01").
-    numero, ordem = db.execute(
-        select(
-            func.coalesce(func.max(BlocoSorteio.numero), 0),
-            func.coalesce(func.max(BlocoSorteio.ordem), 0),
-        ).where(BlocoSorteio.event_id == evento_id)
-    ).one()
-    return numero + 1, ordem + 1
+    # Blocos excluidos ficam com numero negativo (o historico usa numero_original),
+    # entao a numeracao dos ativos recomeca do 01 depois de excluir blocos.
+    numero = db.scalar(
+        select(func.coalesce(func.max(BlocoSorteio.numero), 0)).where(
+            BlocoSorteio.event_id == evento_id, BlocoSorteio.numero > 0
+        )
+    )
+    ordem = db.scalar(
+        select(func.coalesce(func.max(BlocoSorteio.ordem), 0)).where(BlocoSorteio.event_id == evento_id)
+    )
+    return (numero or 0) + 1, (ordem or 0) + 1
 
 
 def _nome_livre(db: Session, evento_id: int, nome: str, ignorar_id: int | None = None) -> None:
@@ -369,12 +371,72 @@ def remover_bloco(db: Session, evento: Event, bloco: BlocoSorteio, usuario: User
     )
     if sorteios:
         bloco.excluido_em = utcnow()
+        # O numero sai do caminho (negativo e unico, nunca exibido); o historico
+        # continua mostrando o original. Assim os ativos voltam a ser 01, 02...
+        bloco.numero_original = bloco.numero
+        bloco.numero = -bloco.id
         if bloco.status == StatusBloco.EM_ANDAMENTO.value:
             # Libera o "um bloco em andamento por evento" para o proximo bloco.
             bloco.status = StatusBloco.PAUSADO.value
     else:
         db.delete(bloco)
+    db.flush()
+    renumerar_planejados(db, evento.id)
     return len(liberadas)
+
+
+def numeros_dos_planejados(blocos: list[tuple[int, int, int, bool]]) -> dict[int, int]:
+    """Numero de cada bloco planejado: o menor livre depois dos iniciados que vem antes.
+
+    `blocos`: (id, ordem, numero, planejado) dos blocos ativos, na ordem do evento.
+    Os iniciados/finalizados mantem o numero. Ex.: 01 finalizado, 02 planejado,
+    03 em andamento -> o 02 continua 02. Excluidos 01 a 03 -> 04 e 05 viram 01 e 02.
+    (A migracao 0015 repete esta mesma regra.)
+    """
+    fixos = {numero for _i, _o, numero, planejado in blocos if not planejado}
+    novos: dict[int, int] = {}
+    ultimo = 0
+    maior_fixo_antes = 0
+    for bloco_id, _ordem, numero, planejado in blocos:
+        if not planejado:
+            maior_fixo_antes = max(maior_fixo_antes, numero)
+            continue
+        candidato = max(maior_fixo_antes, ultimo) + 1
+        while candidato in fixos:
+            candidato += 1
+        novos[bloco_id] = candidato
+        ultimo = candidato
+    return novos
+
+
+def renumerar_planejados(db: Session, evento_id: int) -> None:
+    """Numera os blocos PLANEJADO em sequencia, logo depois dos ja iniciados.
+
+    Ex.: excluidos os blocos 01 a 03, os planejados 04 e 05 viram 01 e 02.
+    Blocos iniciados, pausados ou finalizados nao mudam de numero. O nome
+    padrao ("Bloco 04") acompanha o numero; nomes escolhidos pela equipe ficam.
+    """
+    ativos = blocos_do_evento(db, evento_id)
+    planejados = [b for b in ativos if b.status == StatusBloco.PLANEJADO.value]
+    novos = numeros_dos_planejados(
+        [(b.id, b.ordem, b.numero, b.status == StatusBloco.PLANEJADO.value) for b in ativos]
+    )
+    if all(b.numero == novos[b.id] for b in planejados):
+        return
+    antigos = {b.id: b.numero for b in planejados}
+    # Duas etapas: tira todos do caminho e depois grava (numero e unico no evento).
+    for b in planejados:
+        b.numero = -(1_000_000 + b.id)
+    db.flush()
+    usados = {b.nome.lower() for b in ativos}
+    for b in planejados:
+        b.numero = novos[b.id]
+        novo_nome = nome_padrao(b.numero)
+        if b.nome == nome_padrao(antigos[b.id]) and novo_nome.lower() not in usados:
+            usados.discard(b.nome.lower())
+            b.nome = novo_nome
+            usados.add(novo_nome.lower())
+    db.flush()
 
 
 def reordenar_blocos(db: Session, evento: Event, ids: list[int], usuario: User) -> None:
@@ -567,6 +629,78 @@ def distribuir_automaticamente(
         },
     )
     return criados
+
+
+def _planejados_em_ordem(db: Session, evento_id: int) -> list[BlocoSorteio]:
+    return [b for b in blocos_do_evento(db, evento_id) if b.status == StatusBloco.PLANEJADO.value]
+
+
+def previa_nos_blocos(db: Session, evento: Event) -> dict:
+    """O que "Distribuir nos blocos criados" faria, sem gravar nada."""
+    planejados = _planejados_em_ordem(db, evento.id)
+    if not planejados:
+        raise RegraDeNegocio(
+            "Não há blocos planejados. Crie os blocos em “Novo bloco” ou use “Distribuir automaticamente”."
+        )
+    _ids, distribuiveis = _distribuiveis(db, evento)
+    if not distribuiveis:
+        raise RegraDeNegocio("Não há unidades disponíveis para distribuir.")
+    resto = len(distribuiveis)
+    blocos = []
+    for bloco in planejados:
+        quantidade = min(bloco.capacidade, resto)
+        resto -= quantidade
+        blocos.append(
+            {"numero": bloco.numero, "nome": bloco.nome, "unidades": quantidade, "capacidade": bloco.capacidade}
+        )
+    return {"unidades": len(distribuiveis), "blocos": blocos, "sobra": resto}
+
+
+def distribuir_nos_blocos(db: Session, evento: Event, usuario: User, misturar: bool = False) -> int:
+    """Preenche os blocos PLANEJADO ja criados, na ordem, ate a capacidade de cada um.
+
+    Mantem os blocos (nome, descricao, capacidade); so troca as unidades
+    deles. Entram as unidades disponiveis sem bloco e as que ja estavam nos
+    planejados. O que nao couber fica sem bloco. Devolve quantas sobraram.
+    """
+    planejados = _planejados_em_ordem(db, evento.id)
+    if not planejados:
+        raise RegraDeNegocio(
+            "Não há blocos planejados. Crie os blocos em “Novo bloco” ou use “Distribuir automaticamente”."
+        )
+    _ids, distribuiveis = _distribuiveis(db, evento)
+    if not distribuiveis:
+        raise RegraDeNegocio("Não há unidades disponíveis para distribuir.")
+    if misturar:
+        distribuiveis = misturar_por_premio(distribuiveis, lambda u: u.prize_id)
+
+    for unidade in distribuiveis:
+        unidade.bloco_id = None
+        unidade.ordem_bloco = None
+    inicio = 0
+    preenchidos: dict[int, int] = {}
+    for bloco in planejados:
+        lote = distribuiveis[inicio : inicio + bloco.capacidade]
+        inicio += len(lote)
+        for posicao, unidade in enumerate(lote, start=1):
+            unidade.bloco_id = bloco.id
+            unidade.ordem_bloco = posicao
+        preenchidos[bloco.numero] = len(lote)
+    sobra = len(distribuiveis) - inicio
+    db.flush()
+    _auditar(
+        db,
+        evento,
+        usuario,
+        "blocos_distribuidos_nos_criados",
+        {
+            "unidades": len(distribuiveis),
+            "blocos": preenchidos,
+            "sem_bloco": sobra,
+            "premios_misturados": misturar,
+        },
+    )
+    return sobra
 
 
 def versao_distribuicao(db: Session, evento_id: int) -> str:
