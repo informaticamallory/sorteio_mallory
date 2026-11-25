@@ -158,6 +158,11 @@ class EventoIn(BaseModel):
     demo: bool = False
 
 
+class ExcluirEventoIn(BaseModel):
+    # Nome do evento digitado pelo admin, como confirmacao.
+    nome_confirmacao: str = Field(min_length=1, max_length=200)
+
+
 class EventoConfigIn(BaseModel):
     nome: str | None = Field(default=None, min_length=1, max_length=200)
     empresa_nome: str | None = None

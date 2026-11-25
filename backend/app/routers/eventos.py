@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Query, status
+from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
 from sqlalchemy import func, select
 from sqlalchemy.orm import Session
 
@@ -28,6 +28,7 @@ from ..schemas import (
     EventoConfigIn,
     EventoIn,
     EventoOut,
+    ExcluirEventoIn,
     FaixaMatriculaOut,
     MudancaRegraOut,
     RegrasIn,
@@ -76,6 +77,47 @@ def criar(dados: EventoIn, db: Session = Depends(get_db), user: User = Depends(G
 @router.get("/{event_id}", response_model=EventoOut, dependencies=VISUALIZAR)
 def obter(evento: Event = Depends(evento_atual)) -> Event:
     return evento
+
+
+@router.delete("/{event_id}", status_code=status.HTTP_204_NO_CONTENT)
+def excluir(
+    dados: ExcluirEventoIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(GERENCIAR),
+) -> Response:
+    """Apaga o evento e tudo dele (so o admin). So vale para evento SEM sorteio:
+    resultado de sorteio (valido ou anulado) nunca e apagado.
+
+    Exige o nome do evento digitado, como confirmacao. Fica um registro na
+    auditoria geral (sem evento), com o que foi apagado.
+    """
+    if dados.nome_confirmacao.strip().lower() != evento.nome.strip().lower():
+        raise HTTPException(
+            status.HTTP_422_UNPROCESSABLE_ENTITY, "Digite o nome do evento exatamente como aparece para confirmar."
+        )
+    sorteios = db.scalar(select(func.count(Draw.id)).where(Draw.event_id == evento.id)) or 0
+    if sorteios:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Este evento já tem {sorteios} sorteio(s) registrado(s) e não pode ser apagado: "
+            "os resultados ficam guardados.",
+        )
+    contagem = {
+        "participantes": db.scalar(select(func.count(Participant.id)).where(Participant.event_id == evento.id)) or 0,
+        "premios": db.scalar(select(func.count(Prize.id)).where(Prize.event_id == evento.id)) or 0,
+    }
+    db.add(
+        AuditLog(
+            event_id=None,
+            usuario_id=user.id,
+            acao="evento_excluido",
+            detalhes={"evento_id": evento.id, "nome": evento.nome, "empresa": evento.empresa_nome, **contagem},
+        )
+    )
+    db.delete(evento)
+    db.commit()
+    return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
 @router.patch("/{event_id}", response_model=EventoOut)

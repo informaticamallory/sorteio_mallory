@@ -16,6 +16,52 @@ export default function Eventos() {
   const [nome, setNome] = useState('')
   const [empresa, setEmpresa] = useState('')
   const [salvando, setSalvando] = useState(false)
+  const [editando, setEditando] = useState<{ id: number; nome: string; empresa: string } | null>(null)
+  const [excluindo, setExcluindo] = useState<Evento | null>(null)
+  const [confirmacao, setConfirmacao] = useState('')
+  const [aviso, setAviso] = useState('')
+
+  useEffect(() => setConfirmacao(''), [excluindo])
+
+  async function salvarEdicao(e: React.FormEvent) {
+    e.preventDefault()
+    if (!editando) return
+    setSalvando(true)
+    setErro('')
+    try {
+      await requisitar(`/api/events/${editando.id}`, {
+        metodo: 'PATCH',
+        corpo: { nome: editando.nome.trim(), empresa_nome: editando.empresa.trim() },
+      })
+      setEditando(null)
+      await carregar()
+    } catch (erroSalvar) {
+      setErro(erroSalvar instanceof Error ? erroSalvar.message : 'Falha ao salvar o evento')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function excluir(e: React.FormEvent) {
+    e.preventDefault()
+    if (!excluindo) return
+    setSalvando(true)
+    setErro('')
+    try {
+      await requisitar(`/api/events/${excluindo.id}`, {
+        metodo: 'DELETE',
+        corpo: { nome_confirmacao: confirmacao.trim() },
+      })
+      setAviso(`Evento “${excluindo.nome}” excluído.`)
+      setExcluindo(null)
+      await carregar()
+    } catch (erroExcluir) {
+      setExcluindo(null)
+      setErro(erroExcluir instanceof Error ? erroExcluir.message : 'Falha ao excluir o evento')
+    } finally {
+      setSalvando(false)
+    }
+  }
 
   async function carregar() {
     try {
@@ -70,6 +116,7 @@ export default function Eventos() {
     >
       <div className="space-y-4">
         {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        {aviso && <Aviso tipo="sucesso">{aviso}</Aviso>}
 
         {eventos === null ? (
           <Carregando />
@@ -119,10 +166,32 @@ export default function Eventos() {
                             <span className="hidden sm:inline">Telão</span>
                           </a>
                         )}
+                        {pode('configurar_evento') && (
+                          <button
+                            type="button"
+                            className="btn-sutil"
+                            title="Editar nome e empresa"
+                            onClick={() => setEditando({ id: evento.id, nome: evento.nome, empresa: evento.empresa_nome ?? '' })}
+                          >
+                            <Icone nome="editar" />
+                            <span className="hidden sm:inline">Editar</span>
+                          </button>
+                        )}
                         {/* A rota índice do evento abre a primeira tela do perfil. */}
                         <Link to={`/eventos/${evento.id}`} className="btn-neutro">
                           Abrir
                         </Link>
+                        {pode('gerenciar_eventos') && (
+                          <button
+                            type="button"
+                            className="btn border border-rose-200 bg-white px-2.5 text-rose-700 hover:bg-rose-50"
+                            title="Excluir evento (só sem sorteios)"
+                            aria-label={`Excluir ${evento.nome}`}
+                            onClick={() => setExcluindo(evento)}
+                          >
+                            <Icone nome="excluir" />
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -132,6 +201,85 @@ export default function Eventos() {
           </div>
         )}
       </div>
+
+      <Modal titulo="Editar evento" aberto={editando !== null} aoFechar={() => setEditando(null)}>
+        {editando && (
+          <form onSubmit={salvarEdicao} className="space-y-4">
+            <div>
+              <label className="rotulo" htmlFor="editar-nome">
+                Nome do evento
+              </label>
+              <input
+                id="editar-nome"
+                className="campo"
+                autoFocus
+                required
+                maxLength={200}
+                value={editando.nome}
+                onChange={(e) => setEditando({ ...editando, nome: e.target.value })}
+              />
+            </div>
+            <div>
+              <label className="rotulo" htmlFor="editar-empresa">
+                Nome da empresa
+              </label>
+              <input
+                id="editar-empresa"
+                className="campo"
+                value={editando.empresa}
+                onChange={(e) => setEditando({ ...editando, empresa: e.target.value })}
+              />
+            </div>
+            <p className="text-xs text-slate-500">Cores, logo, telão e cadastro ficam em Configuração, dentro do evento.</p>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn-neutro" onClick={() => setEditando(null)}>
+                Cancelar
+              </button>
+              <button type="submit" className="btn-primario" disabled={salvando || !editando.nome.trim()}>
+                {salvando ? 'Salvando...' : 'Salvar'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
+
+      <Modal titulo="Excluir evento" aberto={excluindo !== null} aoFechar={() => setExcluindo(null)}>
+        {excluindo && (
+          <form onSubmit={excluir} className="space-y-4">
+            <Aviso tipo="atencao">
+              Isto <strong>apaga de vez</strong> o evento <strong>{excluindo.nome}</strong> e tudo dele: participantes,
+              prêmios, blocos, presença e configurações. Não dá para desfazer. Só é possível se o evento ainda não teve
+              nenhum sorteio.
+            </Aviso>
+            <div>
+              <label className="rotulo" htmlFor="confirmar-nome">
+                Para confirmar, digite o nome do evento
+              </label>
+              <input
+                id="confirmar-nome"
+                className="campo"
+                autoFocus
+                autoComplete="off"
+                value={confirmacao}
+                onChange={(e) => setConfirmacao(e.target.value)}
+                placeholder={excluindo.nome}
+              />
+            </div>
+            <div className="flex justify-end gap-2 pt-2">
+              <button type="button" className="btn-neutro" onClick={() => setExcluindo(null)}>
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                className="btn-perigo"
+                disabled={salvando || confirmacao.trim().toLowerCase() !== excluindo.nome.trim().toLowerCase()}
+              >
+                {salvando ? 'Excluindo...' : 'Excluir evento'}
+              </button>
+            </div>
+          </form>
+        )}
+      </Modal>
 
       <Modal titulo="Novo evento" aberto={criando} aoFechar={() => setCriando(false)}>
         <form onSubmit={criar} className="space-y-4">
