@@ -55,17 +55,34 @@ def _celula_para_texto(valor) -> str:
 
 def ler_planilha(conteudo: bytes, nome_arquivo: str) -> list[dict]:
     """Devolve as linhas brutas da planilha como dicionarios nome/matricula/setor."""
+    todas = ler_linhas(conteudo, nome_arquivo)
+    if not todas:
+        return []
+    return _montar(todas[0], todas[1:])
+
+
+def ler_linhas(conteudo: bytes, nome_arquivo: str) -> list[list[str]]:
+    """Linhas nao vazias da planilha (CSV ou XLSX), cabecalho incluido, como texto."""
     nome = (nome_arquivo or "").lower()
     if nome.endswith(".csv") or nome.endswith(".txt"):
-        linhas = _ler_csv(conteudo)
-    elif nome.endswith(".xlsx") or nome.endswith(".xlsm"):
-        linhas = _ler_xlsx(conteudo)
-    else:
-        raise ValueError("Formato não suportado. Envie um arquivo .csv ou .xlsx")
-    return linhas
+        return _linhas_csv(conteudo)
+    if nome.endswith(".xlsx") or nome.endswith(".xlsm"):
+        return _linhas_xlsx(conteudo)
+    raise ValueError("Formato não suportado. Envie um arquivo .csv ou .xlsx")
+
+
+def normalizar_cabecalho(texto: str) -> str:
+    return _normalizar(texto)
 
 
 def _ler_csv(conteudo: bytes) -> list[dict]:
+    todas = _linhas_csv(conteudo)
+    if not todas:
+        return []
+    return _montar(todas[0], todas[1:])
+
+
+def _linhas_csv(conteudo: bytes) -> list[list[str]]:
     texto = None
     for codificacao in ("utf-8-sig", "utf-8", "latin-1"):
         try:
@@ -84,13 +101,17 @@ def _ler_csv(conteudo: bytes) -> list[dict]:
         delimitador = ";" if amostra.count(";") > amostra.count(",") else ","
 
     leitor = csv.reader(io.StringIO(texto), delimiter=delimitador)
-    todas = [linha for linha in leitor if any((c or "").strip() for c in linha)]
+    return [linha for linha in leitor if any((c or "").strip() for c in linha)]
+
+
+def _ler_xlsx(conteudo: bytes) -> list[dict]:
+    todas = _linhas_xlsx(conteudo)
     if not todas:
         return []
     return _montar(todas[0], todas[1:])
 
 
-def _ler_xlsx(conteudo: bytes) -> list[dict]:
+def _linhas_xlsx(conteudo: bytes) -> list[list[str]]:
     wb = load_workbook(io.BytesIO(conteudo), read_only=True, data_only=True)
     ws = wb.active
     todas = []
@@ -107,9 +128,7 @@ def _ler_xlsx(conteudo: bytes) -> list[dict]:
             if todas and vazias_seguidas >= LIMITE_LINHAS_VAZIAS:
                 break
     wb.close()
-    if not todas:
-        return []
-    return _montar(todas[0], todas[1:])
+    return todas
 
 
 def _montar(cabecalho: list, corpo: list[list]) -> list[dict]:

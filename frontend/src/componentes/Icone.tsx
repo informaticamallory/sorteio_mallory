@@ -55,7 +55,10 @@ const CAMINHOS = {
   bilhete: 'M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM9 7v2M9 11v2M9 15v2',
   celular: 'M7 3h10v18H7zM11 18h2',
   seta: 'M5 12h14M13 6l6 6-6 6',
-  cracha: 'M4 7h16v13H4zM10 4h4v5h-4zM9 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4M6 18c.5-1.4 1.6-2.2 3-2.2s2.5.8 3 2.2M14 12h3.5M14 15h3.5',
+  copiar: 'M9 9h11v11H9zM5 15H4V4h11v1',
+  lista: 'M9 6h11M9 12h11M9 18h11M4.5 6h.01M4.5 12h.01M4.5 18h.01',
+  grade: 'M4 4h7v7H4zM13 4h7v7h-7zM4 13h7v7H4zM13 13h7v7h-7z',
+  cracha:'M4 7h16v13H4zM10 4h4v5h-4zM9 15a2 2 0 1 0 0-4 2 2 0 0 0 0 4M6 18c.5-1.4 1.6-2.2 3-2.2s2.5.8 3 2.2M14 12h3.5M14 15h3.5',
 } as const
 
 export type NomeIcone = keyof typeof CAMINHOS

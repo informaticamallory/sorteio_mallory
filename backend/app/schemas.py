@@ -423,6 +423,34 @@ class PremioIn(BaseModel):
     ordem: int = 0
 
 
+class LinhaImportPremio(BaseModel):
+    linha: int
+    nome: str
+    descricao: str | None = None
+    quantidade: int
+    erros: list[str]
+    ja_existe: bool
+
+
+class PreviaImportPremios(BaseModel):
+    linhas: list[LinhaImportPremio]
+
+
+class PremioImportItem(BaseModel):
+    nome: str = Field(min_length=1, max_length=200)
+    descricao: str | None = None
+    quantidade: int = Field(default=1, ge=1, le=500)
+
+
+class ImportarPremiosIn(BaseModel):
+    linhas: list[PremioImportItem] = Field(min_length=1, max_length=2000)
+
+
+class ImportarPremiosOut(BaseModel):
+    criados: int
+    ignorados: int
+
+
 class PremioUpdate(BaseModel):
     nome: str | None = Field(default=None, min_length=1, max_length=200)
     descricao: str | None = None
@@ -528,11 +556,23 @@ class EntregaLoteIn(BaseModel):
 
     sorteios: list[int] = Field(min_length=1, max_length=100)
     pulseira_conferida: str | None = None
+    # Foto opcional da entrega, ja enviada por /api/uploads/imagem.
+    foto_url: str | None = None
 
     @field_validator("pulseira_conferida")
     @classmethod
     def _pulseira(cls, v: str | None) -> str | None:
         return normalizar_pulseira(v)
+
+    @field_validator("foto_url")
+    @classmethod
+    def _foto(cls, v: str | None) -> str | None:
+        if not v:
+            return None
+        # So imagens gravadas pelo proprio sistema (nada de link externo).
+        if not re.fullmatch(r"/uploads/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp)", v):
+            raise ValueError("Foto da entrega inválida")
+        return v
 
 
 class EntregasResumoOut(BaseModel):
@@ -587,6 +627,8 @@ class HistoricoEntregaOut(BaseModel):
     motivo: str | None = None
     # Situacao ATUAL da unidade: entregue | pendente | anulado.
     situacao_atual: str | None = None
+    # Foto opcional tirada na confirmacao da entrega.
+    foto_url: str | None = None
 
 
 class PaginaHistoricoEntregasOut(BaseModel):
@@ -900,6 +942,26 @@ class PreviaDistribuicaoOut(BaseModel):
     blocos: list[PreviaBlocoOut]
     # Blocos planejados que serao recriados (nomes, descricoes e ajustes manuais se perdem).
     planejados_refeitos: list[str] = []
+
+
+class DistribuirNosBlocosIn(BaseModel):
+    misturar: bool = False
+
+
+class PreviaNosBlocosItemOut(BaseModel):
+    numero: int
+    nome: str
+    unidades: int
+    capacidade: int
+
+
+class PreviaNosBlocosOut(BaseModel):
+    """Simulacao do preenchimento dos blocos planejados ja criados."""
+
+    unidades: int
+    blocos: list[PreviaNosBlocosItemOut]
+    # Unidades que nao cabem na capacidade dos blocos: ficam sem bloco.
+    sobra: int
 
 
 class ReordenarBlocosIn(BaseModel):

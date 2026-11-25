@@ -67,7 +67,14 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("PATCH", f"{E}/premios/{{prize_id}}"): {A, O},
     ("POST", f"{E}/premios/reordenar"): {A, O},
     ("DELETE", f"{E}/premios/{{prize_id}}"): {A, O},
-    ("POST", "/api/uploads/imagem"): {A, O},
+    ("POST", f"{E}/blocos/distribuir-nos-blocos/previa"): {A, O},
+    ("POST", f"{E}/blocos/distribuir-nos-blocos"): {A, O},
+    ("POST", f"{E}/premios/importar/previa"): {A, O},
+    ("POST", f"{E}/premios/importar/confirmar"): {A, O},
+    ("GET", "/api/premios/modelo.csv"): {A, O},
+    ("GET", "/api/premios/modelo.xlsx"): {A, O},
+    # imagens: premios, participantes, logo e a foto opcional da entrega
+    ("POST", "/api/uploads/imagem"): {A, O, R, N},
     # blocos (admin e RH organizam; o sorteador conduz)
     ("GET", f"{E}/blocos"): {A, S, O},
     ("POST", f"{E}/blocos"): {A, O},

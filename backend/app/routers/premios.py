@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+from fastapi import APIRouter, Depends, File, HTTPException, Response, UploadFile, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -23,9 +23,23 @@ from ..models import (
 )
 from ..services.blocos import em_revelacao
 from ..services.telao import publicar_estado
-from ..schemas import PremioIn, PremioOut, PremioUpdate, ReordenarIn, UnidadeOut
+from ..config import settings
+from ..schemas import (
+    ImportarPremiosIn,
+    ImportarPremiosOut,
+    PremioIn,
+    PremioOut,
+    PremioUpdate,
+    PreviaImportPremios,
+    ReordenarIn,
+    UnidadeOut,
+)
+from ..services import importacao_premios
+from ..texto import normalizar_busca
 
 router = APIRouter(prefix="/api/events/{event_id}/premios", tags=["premios"])
+# Modelos da planilha de importacao (nao dependem de evento).
+modelos = APIRouter(prefix="/api/premios", tags=["premios"])
 
 CADASTRAR = exigir_permissao(Permissao.CADASTRAR_PREMIOS)
 # O operador le os premios (a tela de sorteio lista as unidades), mas nao altera.
@@ -178,6 +192,103 @@ def reordenar(
             premio.ordem = posicao
     db.commit()
     return listar(evento=evento, db=db)
+
+
+# ------------------------------------------------------------------ importacao
+def _nomes_existentes(db: Session, evento: Event) -> set[str]:
+    return {
+        normalizar_busca(nome)
+        for nome in db.scalars(
+            select(Prize.nome).where(Prize.event_id == evento.id, Prize.excluido_em.is_(None))
+        ).all()
+    }
+
+
+@router.post(
+    "/importar/previa",
+    response_model=PreviaImportPremios,
+    dependencies=requer(Permissao.CADASTRAR_PREMIOS),
+)
+def previa_importacao(
+    arquivo: UploadFile = File(...),
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+) -> PreviaImportPremios:
+    """Le a planilha e mostra o que sera importado. Nao grava nada."""
+    conteudo = arquivo.file.read()
+    if len(conteudo) > settings.max_planilha_bytes:
+        limite = settings.max_planilha_bytes // (1024 * 1024)
+        raise HTTPException(status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, f"Planilha maior que {limite} MB")
+    try:
+        linhas = importacao_premios.previa(conteudo, arquivo.filename or "", _nomes_existentes(db, evento))
+    except ValueError as exc:
+        raise HTTPException(status.HTTP_422_UNPROCESSABLE_ENTITY, str(exc)) from exc
+    return PreviaImportPremios(linhas=linhas)
+
+
+@router.post("/importar/confirmar", response_model=ImportarPremiosOut)
+def confirmar_importacao(
+    dados: ImportarPremiosIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(CADASTRAR),
+) -> ImportarPremiosOut:
+    """Cria os premios da planilha, no fim da lista. Quem ja existe fica de fora."""
+    existentes = _nomes_existentes(db, evento)
+    ordem = (
+        db.scalar(select(Prize.ordem).where(Prize.event_id == evento.id).order_by(Prize.ordem.desc()).limit(1))
+        or 0
+    )
+    criados: list[str] = []
+    ignorados = 0
+    for item in dados.linhas:
+        nome = item.nome.strip()
+        chave = normalizar_busca(nome)
+        if not nome or chave in existentes:
+            ignorados += 1
+            continue
+        existentes.add(chave)
+        ordem += 1
+        premio = Prize(
+            event_id=evento.id,
+            nome=nome,
+            descricao=(item.descricao or "").strip() or None,
+            quantidade=item.quantidade,
+            ordem=ordem,
+        )
+        db.add(premio)
+        db.flush()
+        for numero in range(1, item.quantidade + 1):
+            db.add(PrizeUnit(prize_id=premio.id, numero=numero))
+        criados.append(nome)
+    db.add(
+        AuditLog(
+            event_id=evento.id,
+            usuario_id=user.id,
+            acao="premios_importados",
+            detalhes={"criados": len(criados), "ignorados": ignorados, "premios": criados[:200]},
+        )
+    )
+    db.commit()
+    return ImportarPremiosOut(criados=len(criados), ignorados=ignorados)
+
+
+@modelos.get("/modelo.csv")
+def baixar_modelo_csv(_: User = Depends(CADASTRAR)) -> Response:
+    return Response(
+        content=importacao_premios.modelo_csv(),
+        media_type="text/csv; charset=utf-8",
+        headers={"Content-Disposition": 'attachment; filename="modelo-premios.csv"'},
+    )
+
+
+@modelos.get("/modelo.xlsx")
+def baixar_modelo_xlsx(_: User = Depends(CADASTRAR)) -> Response:
+    return Response(
+        content=importacao_premios.modelo_xlsx(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="modelo-premios.xlsx"'},
+    )
 
 
 @router.delete("/{prize_id}", status_code=status.HTTP_204_NO_CONTENT)
