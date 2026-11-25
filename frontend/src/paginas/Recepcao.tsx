@@ -11,6 +11,7 @@ import type {
   HistoricoEntrega,
   Pagina,
   Premiado,
+  PaginaPremiados,
   PremioGanho,
 } from '../types'
 import { formatar } from './Historico'
@@ -770,18 +771,21 @@ function ListaPremiados({
   const [ate, setAte] = useState('')
   const [operadorId, setOperadorId] = useState('')
   const [pagina, setPagina] = useState(1)
-  const [dados, setDados] = useState<Pagina<Premiado> | null>(null)
+  const [dados, setDados] = useState<PaginaPremiados | null>(null)
   const [erro, setErro] = useState('')
 
   useEffect(() => {
     requisitar<FiltrosEntregas>(`${base}/filtros`).then(setOpcoes).catch(() => setOpcoes(null))
   }, [base, versao])
 
+  // Operador = quem entregou: não existe nos pendentes, então o filtro some ali.
+  const comOperador = situacao !== 'pendentes'
+
   const parametros = useMemo(() => {
     const p = new URLSearchParams({ situacao, pagina: String(pagina), por_pagina: '12' })
     if (blocoId) p.set('bloco_id', blocoId)
     if (premioId) p.set('premio_id', premioId)
-    if (operadorId) p.set('operador_id', operadorId)
+    if (operadorId && situacao !== 'pendentes') p.set('operador_id', operadorId)
     if (periodo === 'hoje') {
       const hoje = hojeNoFuso(fuso)
       p.set('de', hoje)
@@ -798,7 +802,7 @@ function ListaPremiados({
 
   useEffect(() => {
     let vivo = true
-    requisitar<Pagina<Premiado>>(`${base}/premiados?${parametros}`)
+    requisitar<PaginaPremiados>(`${base}/premiados?${parametros}`)
       .then((d) => vivo && (setDados(d), setErro('')))
       .catch((e) => vivo && setErro(mensagem(e, 'Falha ao carregar a lista')))
     return () => {
@@ -809,7 +813,6 @@ function ListaPremiados({
   useEffect(() => setPagina(1), [situacao, blocoId, premioId, operadorId, periodo, de, ate])
 
   function limpar() {
-    setSituacao('pendentes')
     setBlocoId('')
     setPremioId('')
     setPeriodo('')
@@ -818,111 +821,254 @@ function ListaPremiados({
     setOperadorId('')
   }
 
-  const filtrosAtivos = [blocoId, premioId, periodo, operadorId].filter(Boolean).length + (situacao !== 'pendentes' ? 1 : 0)
+  function mudarSituacao(valor: string) {
+    setSituacao(valor)
+    if (valor === 'pendentes') setOperadorId('')
+  }
+
+  function mudarPeriodo(valor: string) {
+    setPeriodo(valor)
+    if (!valor || valor === 'hoje') {
+      setDe('')
+      setAte('')
+    }
+  }
+
+  const filtrosAtivos = [blocoId, premioId, periodo, comOperador ? operadorId : ''].filter(Boolean).length
+  const contagem = dados?.contagem
+  // O período vale sobre a data da entrega na aba "Entregues" e do sorteio nas demais.
+  const rotuloData = situacao === 'entregues' ? 'Data da entrega' : 'Data do sorteio'
 
   return (
     <section className="rounded-xl border border-borda bg-white p-4 shadow-suave sm:p-5">
-      <div className="flex flex-wrap items-center justify-between gap-2">
+      <div className="flex flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-2 text-base font-bold text-slate-900">
           <Icone nome="premios" className="h-5 w-5 text-marca-600" />
           Prêmios sorteados
         </h2>
-        <p className="text-sm text-slate-500">{dados ? `${dados.total} resultado(s)` : '...'}</p>
+        <div role="tablist" aria-label="Situação" className="flex w-full gap-0.5 rounded-lg bg-slate-100 p-1 sm:w-auto">
+          {SITUACOES.map(([valor, rotulo]) => {
+            const ativo = situacao === valor
+            const n = contagem?.[valor]
+            return (
+              <button
+                key={valor}
+                type="button"
+                role="tab"
+                aria-selected={ativo}
+                onClick={() => mudarSituacao(valor)}
+                className={`flex-1 whitespace-nowrap rounded-md px-3 py-1.5 text-sm transition-colors sm:flex-none ${
+                  ativo
+                    ? 'bg-white font-semibold text-marca-700 shadow-sm ring-1 ring-marca-200'
+                    : 'text-slate-600 hover:text-slate-900'
+                }`}
+              >
+                {rotulo}
+                {n !== undefined && (
+                  <span className={`ml-1.5 tabular-nums ${ativo ? 'text-marca-600' : 'text-slate-400'}`}>{n}</span>
+                )}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
-      <details className="mt-3 rounded-lg border border-slate-200 p-3 lg:open:pb-3" open>
-        <summary className="cursor-pointer text-sm font-semibold text-slate-700">
-          Filtros{filtrosAtivos ? ` (${filtrosAtivos})` : ''}
-        </summary>
-        <div className="mt-3 grid gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <select className="campo" aria-label="Situação" value={situacao} onChange={(e) => setSituacao(e.target.value)}>
-            <option value="pendentes">Pendentes</option>
-            <option value="entregues">Entregues</option>
-            <option value="todos">Todos</option>
-          </select>
-          <select className="campo" aria-label="Bloco" value={blocoId} onChange={(e) => setBlocoId(e.target.value)}>
-            <option value="">Todos os blocos</option>
-            {opcoes?.blocos.map((b) => (
-              <option key={b.id} value={b.id}>
-                {b.nome}
-              </option>
-            ))}
-          </select>
-          <select className="campo" aria-label="Prêmio" value={premioId} onChange={(e) => setPremioId(e.target.value)}>
-            <option value="">Todos os produtos</option>
-            {opcoes?.premios.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.nome}
-              </option>
-            ))}
-          </select>
-          <select className="campo" aria-label="Período" value={periodo} onChange={(e) => setPeriodo(e.target.value)}>
-            <option value="">Qualquer data</option>
-            <option value="hoje">Hoje</option>
-            <option value="data">Data específica</option>
-            <option value="intervalo">Intervalo de datas</option>
-          </select>
-          <select className="campo" aria-label="Operador" value={operadorId} onChange={(e) => setOperadorId(e.target.value)}>
-            <option value="">Todos os operadores</option>
-            {opcoes?.operadores.map((o) => (
-              <option key={o.id} value={o.id}>
-                {o.nome}
-              </option>
-            ))}
-          </select>
-          {(periodo === 'data' || periodo === 'intervalo') && (
-            <input type="date" className="campo" aria-label={periodo === 'data' ? 'Data' : 'De'} value={de} onChange={(e) => setDe(e.target.value)} />
-          )}
-          {periodo === 'intervalo' && (
-            <input type="date" className="campo" aria-label="Até" value={ate} onChange={(e) => setAte(e.target.value)} />
-          )}
-        </div>
-        <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-xs text-slate-500">
-          <span>O período vale sobre a data da entrega (situação “Entregues”) ou do sorteio (demais).</span>
-          <button type="button" className="font-semibold text-marca-700 hover:underline" onClick={limpar}>
-            Limpar filtros
+      <div className="mt-3 flex flex-wrap items-center gap-2">
+        <FiltroChip rotulo="Bloco" valor={blocoId} aoMudar={setBlocoId} opcoes={opcoes?.blocos ?? []} />
+        <FiltroChip rotulo="Prêmio" valor={premioId} aoMudar={setPremioId} opcoes={opcoes?.premios ?? []} />
+        <FiltroChip
+          rotulo={rotuloData}
+          valor={periodo}
+          aoMudar={mudarPeriodo}
+          opcoes={[
+            { id: 'hoje', nome: `${rotuloData}: hoje` },
+            { id: 'data', nome: `${rotuloData}: dia` },
+            { id: 'intervalo', nome: `${rotuloData}: intervalo` },
+          ]}
+        />
+        {(periodo === 'data' || periodo === 'intervalo') && (
+          <span className="flex items-center gap-1.5">
+            <input
+              type="date"
+              className="campo h-8 w-auto rounded-full px-3"
+              aria-label={periodo === 'data' ? 'Dia' : 'De'}
+              value={de}
+              onChange={(e) => setDe(e.target.value)}
+            />
+            {periodo === 'intervalo' && (
+              <>
+                <span className="text-xs text-slate-500">até</span>
+                <input
+                  type="date"
+                  className="campo h-8 w-auto rounded-full px-3"
+                  aria-label="Até"
+                  value={ate}
+                  onChange={(e) => setAte(e.target.value)}
+                />
+              </>
+            )}
+          </span>
+        )}
+        {comOperador && (
+          <FiltroChip rotulo="Operador" valor={operadorId} aoMudar={setOperadorId} opcoes={opcoes?.operadores ?? []} />
+        )}
+        {filtrosAtivos > 0 && (
+          <button type="button" className="px-1 text-sm font-semibold text-marca-700 hover:underline" onClick={limpar}>
+            Limpar
           </button>
-        </div>
-      </details>
+        )}
+        <span className="ml-auto text-xs text-slate-500">
+          {dados ? `${dados.total} resultado${dados.total === 1 ? '' : 's'}` : '...'}
+        </span>
+      </div>
 
       {erro && <div className="mt-3"><Aviso tipo="erro">{erro}</Aviso></div>}
       {dados && dados.itens.length === 0 && (
-        <p className="mt-4 text-center text-sm text-slate-500">
+        <p className="mt-6 text-center text-sm text-slate-500">
           {situacao === 'pendentes' && filtrosAtivos === 0 ? 'Nenhuma entrega pendente. 🎉' : 'Nenhum prêmio com esses filtros.'}
         </p>
       )}
       {dados && dados.itens.length > 0 && (
-        <ul className="mt-3 grid grid-cols-1 gap-2 lg:grid-cols-2">
-          {dados.itens.map((item) => (
-            <li key={item.sorteio_id} className="min-w-0">
-              <button
-                type="button"
-                onClick={() => aoAtender(item)}
-                className="flex w-full items-center gap-3 rounded-lg border border-slate-200 p-2 text-left hover:border-marca-300 hover:bg-marca-50/40"
-                title="Abrir o atendimento deste ganhador"
-              >
-                <Foto url={item.foto_url} nome={item.nome} tamanho="h-12 w-12" />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate font-semibold text-slate-900">{item.nome}</span>
-                  <span className="block truncate text-xs text-slate-500">
-                    {item.matricula} · {item.premio_nome} (un. {item.unidade_numero}) · {bloco(item.bloco_numero)}
-                  </span>
-                  <span className="block truncate text-xs text-slate-400">
-                    {item.entregue
-                      ? `Entregue por ${item.entregue_por} em ${formatar(item.entregue_em, fuso)}`
-                      : `Sorteado em ${formatar(item.sorteado_em, fuso)}`}
-                  </span>
-                </span>
-                <Situacao entregue={item.entregue} />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <div className="mt-3">
+          <div
+            className={`hidden gap-3 px-2 pb-1.5 text-xs font-medium text-slate-400 lg:grid ${COLUNAS}`}
+            aria-hidden="true"
+          >
+            <span />
+            <span>Ganhador</span>
+            <span>Prêmio</span>
+            <span>Bloco</span>
+            <span>{situacao === 'entregues' ? 'Entrega' : 'Sorteio'}</span>
+            <span />
+          </div>
+          <ul className="divide-y divide-slate-200 border-y border-slate-200">
+            {dados.itens.map((item) => (
+              <LinhaPremiado key={item.sorteio_id} item={item} fuso={fuso} aoAtender={aoAtender} />
+            ))}
+          </ul>
+        </div>
       )}
       {dados && dados.paginas > 1 && (
         <Paginacao pagina={dados.pagina} paginas={dados.paginas} aoMudar={setPagina} />
       )}
     </section>
+  )
+}
+
+const SITUACOES = [
+  ['pendentes', 'Pendentes'],
+  ['entregues', 'Entregues'],
+  ['todos', 'Todos'],
+] as const
+
+/** Colunas da lista no computador: foto, ganhador, prêmio, bloco, data, situação. */
+const COLUNAS = 'lg:grid-cols-[2.75rem_minmax(0,1.6fr)_minmax(0,1.3fr)_5rem_6.5rem_7rem]'
+
+/** Filtro em forma de chip: um select nativo (bom no toque) que fica laranja quando ativo. */
+function FiltroChip({
+  rotulo,
+  valor,
+  opcoes,
+  aoMudar,
+}: {
+  rotulo: string
+  valor: string
+  opcoes: { id: number | string; nome: string }[]
+  aoMudar: (valor: string) => void
+}) {
+  const ativo = valor !== ''
+  return (
+    <span
+      className={`relative inline-flex max-w-full items-center rounded-full border text-sm transition-colors ${
+        ativo ? 'border-marca-300 bg-marca-50 text-marca-800' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
+      }`}
+    >
+      <select
+        aria-label={rotulo}
+        value={valor}
+        onChange={(e) => aoMudar(e.target.value)}
+        className={`max-w-[15rem] cursor-pointer appearance-none truncate rounded-full [field-sizing:content] bg-transparent py-1.5 pl-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-marca-400 ${
+          ativo ? 'pr-1 font-medium' : 'pr-8'
+        }`}
+      >
+        <option value="">{rotulo}</option>
+        {opcoes.map((o) => (
+          <option key={o.id} value={String(o.id)}>
+            {o.nome}
+          </option>
+        ))}
+      </select>
+      {ativo ? (
+        <button
+          type="button"
+          aria-label={`Remover filtro: ${rotulo}`}
+          onClick={() => aoMudar('')}
+          className="mr-1 rounded-full p-1 text-marca-700 hover:bg-marca-100"
+        >
+          <Icone nome="fechar" className="h-3.5 w-3.5" />
+        </button>
+      ) : (
+        <Icone nome="abaixo" className="pointer-events-none absolute right-2.5 h-4 w-4 text-slate-400" />
+      )}
+    </span>
+  )
+}
+
+/** "25/11, 14:47" no fuso do evento (o backend grava UTC). */
+function dataCurta(data: string | null, fuso: string): string {
+  if (!data) return '—'
+  return new Date(`${data}Z`).toLocaleString('pt-BR', {
+    timeZone: fuso,
+    day: '2-digit',
+    month: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
+}
+
+function LinhaPremiado({
+  item,
+  fuso,
+  aoAtender,
+}: {
+  item: Premiado
+  fuso: string
+  aoAtender: (item: Premiado) => void
+}) {
+  const identificacao = [item.matricula, item.setor].filter(Boolean).join(' · ')
+  const premio = `${item.premio_nome} · un. ${item.unidade_numero}`
+  const quando = dataCurta(item.entregue ? item.entregue_em : item.sorteado_em, fuso)
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={() => aoAtender(item)}
+        className={`grid w-full grid-cols-[2.75rem_minmax(0,1fr)_auto] items-center gap-3 px-2 py-2.5 text-left transition-colors hover:bg-marca-50/50 ${COLUNAS}`}
+        title="Abrir o atendimento deste ganhador"
+      >
+        <Foto url={item.foto_url} nome={item.nome} tamanho="h-11 w-11" />
+        <span className="min-w-0">
+          <span className="block truncate font-semibold text-slate-900">{item.nome}</span>
+          <span className="block truncate text-xs text-slate-500 lg:hidden">
+            {premio} · {bloco(item.bloco_numero)}
+          </span>
+          <span className="block truncate text-xs text-slate-400 lg:text-slate-500">
+            {identificacao}
+            <span className="lg:hidden"> · {quando}</span>
+          </span>
+          {item.entregue && item.entregue_por && (
+            <span className="block truncate text-xs text-slate-400">Entregue por {item.entregue_por}</span>
+          )}
+        </span>
+        <span className="hidden min-w-0 truncate text-sm text-slate-700 lg:block">{premio}</span>
+        <span className="hidden text-sm text-slate-600 lg:block">{bloco(item.bloco_numero)}</span>
+        <span className="hidden text-sm tabular-nums text-slate-600 lg:block">{quando}</span>
+        <span className="flex items-center justify-end gap-1">
+          <Situacao entregue={item.entregue} />
+          <Icone nome="avancar" className="hidden h-4 w-4 text-slate-300 lg:block" />
+        </span>
+      </button>
+    </li>
   )
 }
 

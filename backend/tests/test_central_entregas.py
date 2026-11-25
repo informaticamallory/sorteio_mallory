@@ -306,6 +306,21 @@ def test_lista_de_premiados_com_filtros_combinados(cliente, auth):
     assert filtros["premios"][0]["nome"] == "Premio Teste"
 
 
+def test_lista_de_premiados_traz_setor_e_contagem_de_cada_aba(cliente, auth):
+    event_id, pid, sorteios = _evento_com_ganhador(cliente, auth, unidades=3)
+    with session_scope() as db:
+        db.get(Participant, pid).setor = "Informática"
+    _entrega(cliente, auth, event_id, sorteios[0]["id"])
+    url = f"/api/events/{event_id}/recepcao/premiados"
+    pagina = cliente.get(url, headers=auth).json()
+    assert pagina["itens"][0]["setor"] == "Informática"
+    # As abas mostram quantos itens cada situacao teria com os outros filtros.
+    assert pagina["contagem"] == {"pendentes": 2, "entregues": 1, "todos": 3}
+    assert pagina["total"] == pagina["contagem"]["pendentes"]
+    vazio = cliente.get(url, params={"de": "2001-01-01", "ate": "2001-01-02"}, headers=auth).json()
+    assert vazio["contagem"] == {"pendentes": 0, "entregues": 0, "todos": 0}
+
+
 def test_historico_exporta_csv_so_para_perfil_autorizado(cliente, auth):
     event_id, _pid, sorteios = _evento_com_ganhador(cliente, auth, unidades=1)
     _entrega(cliente, auth, event_id, sorteios[0]["id"])

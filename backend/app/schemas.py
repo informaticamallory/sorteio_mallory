@@ -598,6 +598,7 @@ class PremiadoOut(BaseModel):
     pulseira: str | None
     numero_sorteio: int | None
     foto_url: str | None
+    setor: str | None = None
     premio_id: int
     premio_nome: str
     premio_imagem_url: str | None
@@ -610,11 +611,20 @@ class PremiadoOut(BaseModel):
     entregue_por: str | None
 
 
+class ContagemSituacoesOut(BaseModel):
+    """Quantos itens cada aba (situacao) teria com os demais filtros atuais."""
+
+    pendentes: int
+    entregues: int
+    todos: int
+
+
 class PaginaPremiadosOut(BaseModel):
     itens: list[PremiadoOut]
     total: int
     pagina: int
     paginas: int
+    contagem: ContagemSituacoesOut | None = None
 
 
 class HistoricoEntregaOut(BaseModel):

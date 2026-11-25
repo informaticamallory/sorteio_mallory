@@ -27,6 +27,7 @@ from ..permissoes import Permissao
 from ..schemas import (
     AtendimentoOut,
     ColaboradorRecepcaoOut,
+    ContagemSituacoesOut,
     EntregaLoteIn,
     EntregasResumoOut,
     FiltrosEntregasOut,
@@ -141,6 +142,14 @@ def _limites(evento: Event, de: date | None, ate: date | None) -> tuple[datetime
     return (utc(de) if de else None, utc(ate + timedelta(days=1)) if ate else None)
 
 
+def _rotulo_bloco(b: BlocoSorteio) -> str:
+    """Rotulo do bloco no filtro, sem repetir o numero quando o nome ja e "Bloco 03"."""
+    numero = f"Bloco {b.numero_exibicao:02d}"
+    if b.nome.strip().casefold() in {numero.casefold(), f"bloco {b.numero_exibicao}"}:
+        return f"{numero} (excluído)" if b.excluido_em is not None else numero
+    return f"{numero} — {b.nome_exibicao}"
+
+
 @router.get("/filtros", response_model=FiltrosEntregasOut, dependencies=VER)
 def filtros(evento: Event = Depends(evento_atual), db: Session = Depends(get_db)) -> FiltrosEntregasOut:
     """Opcoes dos filtros (blocos, premios e operadores que ja entregaram)."""
@@ -156,7 +165,7 @@ def filtros(evento: Event = Depends(evento_atual), db: Session = Depends(get_db)
         .order_by(User.nome)
     ).all()
     return FiltrosEntregasOut(
-        blocos=[OpcaoFiltroOut(id=b.id, nome=f"Bloco {b.numero:02d} — {b.nome}") for b in blocos],
+        blocos=[OpcaoFiltroOut(id=b.id, nome=_rotulo_bloco(b)) for b in blocos],
         premios=[OpcaoFiltroOut(id=p.id, nome=p.nome) for p in premios],
         operadores=[OpcaoFiltroOut(id=i, nome=n) for i, n in operadores],
     )
@@ -181,10 +190,6 @@ def premiados(
     quando a situacao e "entregues" e sobre a data do SORTEIO nos demais casos."""
     entregador = aliased(User)
     condicoes = [Draw.event_id == evento.id, Draw.status == StatusSorteio.VALIDO.value]
-    if situacao == "pendentes":
-        condicoes.append(Draw.entregue.is_(False))
-    elif situacao == "entregues":
-        condicoes.append(Draw.entregue.is_(True))
     if bloco_id is not None:
         condicoes.append(Draw.bloco_id == bloco_id)
     if premio_id is not None:
@@ -192,11 +197,21 @@ def premiados(
     if operador_id is not None:
         condicoes.append(Draw.entregue_por_id == operador_id)
     inicio, fim = _limites(evento, de, ate)
-    coluna_data = Draw.entregue_em if situacao == "entregues" else Draw.criado_em
-    if inicio is not None:
-        condicoes.append(coluna_data >= inicio)
-    if fim is not None:
-        condicoes.append(coluna_data < fim)
+
+    def da_situacao(s: str) -> list:
+        """Situacao + periodo (a coluna da data depende da situacao)."""
+        extra: list = []
+        if s == "pendentes":
+            extra.append(Draw.entregue.is_(False))
+        elif s == "entregues":
+            extra.append(Draw.entregue.is_(True))
+        coluna_data = Draw.entregue_em if s == "entregues" else Draw.criado_em
+        if inicio is not None:
+            extra.append(coluna_data >= inicio)
+        if fim is not None:
+            extra.append(coluna_data < fim)
+        return extra
+
     termo = q.strip()
     if termo:
         numero_qr = _numero_do_qr(evento, termo)
@@ -215,16 +230,23 @@ def premiados(
                     )
                 )
 
-    base = (
-        select(Draw, Participant, PrizeUnit, Prize, BlocoSorteio, entregador)
-        .join(Participant, Draw.participant_id == Participant.id)
-        .join(PrizeUnit, Draw.prize_unit_id == PrizeUnit.id)
-        .join(Prize, PrizeUnit.prize_id == Prize.id)
-        .outerjoin(BlocoSorteio, Draw.bloco_id == BlocoSorteio.id)
-        .outerjoin(entregador, Draw.entregue_por_id == entregador.id)
-        .where(*condicoes)
-    )
-    total = db.scalar(select(func.count()).select_from(base.subquery())) or 0
+    def consulta(s: str):
+        return (
+            select(Draw, Participant, PrizeUnit, Prize, BlocoSorteio, entregador)
+            .join(Participant, Draw.participant_id == Participant.id)
+            .join(PrizeUnit, Draw.prize_unit_id == PrizeUnit.id)
+            .join(Prize, PrizeUnit.prize_id == Prize.id)
+            .outerjoin(BlocoSorteio, Draw.bloco_id == BlocoSorteio.id)
+            .outerjoin(entregador, Draw.entregue_por_id == entregador.id)
+            .where(*condicoes, *da_situacao(s))
+        )
+
+    def contar(s: str) -> int:
+        return db.scalar(select(func.count()).select_from(consulta(s).subquery())) or 0
+
+    contagem = {s: contar(s) for s in ("pendentes", "entregues", "todos")}
+    base = consulta(situacao)
+    total = contagem[situacao]
     ordem = (Draw.entregue_em.desc(),) if situacao == "entregues" else (Participant.nome_busca, Draw.rodada)
     linhas = db.execute(base.order_by(*ordem).offset((pagina - 1) * por_pagina).limit(por_pagina)).all()
     return PaginaPremiadosOut(
@@ -237,6 +259,7 @@ def premiados(
                 pulseira=p.pulseira,
                 numero_sorteio=p.numero_sorteio,
                 foto_url=p.foto_url,
+                setor=p.setor,
                 premio_id=pr.id,
                 premio_nome=pr.nome,
                 premio_imagem_url=pr.imagem_url,
@@ -253,6 +276,7 @@ def premiados(
         total=total,
         pagina=pagina,
         paginas=max(1, math.ceil(total / por_pagina)),
+        contagem=ContagemSituacoesOut(**contagem),
     )
 
 

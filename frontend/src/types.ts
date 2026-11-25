@@ -105,6 +105,7 @@ export interface Premiado {
   pulseira: string | null
   numero_sorteio: number | null
   foto_url: string | null
+  setor: string | null
   premio_id: number
   premio_nome: string
   premio_imagem_url: string | null
@@ -115,6 +116,11 @@ export interface Premiado {
   entregue: boolean
   entregue_em: string | null
   entregue_por: string | null
+}
+
+/** Lista da Central de Entregas: inclui quantos itens cada aba teria. */
+export interface PaginaPremiados extends Pagina<Premiado> {
+  contagem?: { pendentes: number; entregues: number; todos: number } | null
 }
 
 export interface Pagina<T> {

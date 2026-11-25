@@ -25,7 +25,7 @@ const ATUALIZAR_BLOCOS_MS = 10_000
 // Sorteio automático: quanto tempo o ganhador fica na tela antes do próximo.
 const CHAVE_PAUSA = 'sorteio.pausa_automatico'
 const PAUSA_PADRAO_S = 8
-const PAUSA_MIN_S = 3
+const PAUSA_MIN_S = 1
 const PAUSA_MAX_S = 60
 
 function limitarPausa(valor: number): number {
