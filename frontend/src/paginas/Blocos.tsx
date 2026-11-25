@@ -15,6 +15,7 @@ import type {
   UnidadeBloco,
 } from '../types'
 import { usePainel } from './PainelLayout'
+import { misturarAleatorio } from '../misturar'
 
 const SEM_BLOCO = 'sem'
 
@@ -956,6 +957,59 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
     setSelecionadas((atual) => (atual.includes(id) ? atual.filter((x) => x !== id) : [...atual, id]))
   }
 
+  /** Dado: embaralha a sequência do bloco sem repetir o mesmo prêmio seguido (quando possível). */
+  function misturarBloco(chave: string) {
+    if (!recebe(chave) || chave === SEM_BLOCO) return
+    setColunas((atual) => ({ ...atual, [chave]: misturarAleatorio(atual[chave] ?? [], (u) => u.prize_id) }))
+  }
+
+  /** Exporta a organização como está na tela (inclui o que ainda não foi salvo). */
+  function exportar() {
+    if (!original) return
+    const situacaoUnidade: Record<string, string> = {
+      disponivel: 'Aguardando sorteio',
+      sorteado: 'Sorteada',
+      entregue: 'Sorteada e entregue',
+      removido: 'Prêmio excluído',
+    }
+    const situacaoBloco: Record<string, string> = {
+      PLANEJADO: 'Planejado',
+      EM_ANDAMENTO: 'Em andamento',
+      PAUSADO: 'Pausado',
+      FINALIZADO: 'Finalizado',
+    }
+    const linhas: (string | number)[][] = [
+      ['Bloco', 'Nome do bloco', 'Situação do bloco', 'Posição', 'Prêmio', 'Unidade', 'Situação da unidade'],
+    ]
+    for (const { bloco } of original.blocos) {
+      ;(colunas[String(bloco.id)] ?? []).forEach((u, i) =>
+        linhas.push([
+          numeroBloco(bloco.numero),
+          bloco.nome,
+          situacaoBloco[bloco.status] ?? bloco.status,
+          i + 1,
+          u.premio_nome,
+          `${u.numero} de ${u.quantidade_premio}`,
+          situacaoUnidade[u.status] ?? u.status,
+        ]),
+      )
+    }
+    ;(colunas[SEM_BLOCO] ?? []).forEach((u, i) =>
+      linhas.push(['Sem bloco', '', '', i + 1, u.premio_nome, `${u.numero} de ${u.quantidade_premio}`, situacaoUnidade[u.status] ?? u.status]),
+    )
+    // Ponto e vírgula + BOM: abre direto no Excel em português.
+    const celula = (v: string | number) => `"${String(v).replace(/"/g, '""')}"`
+    const csv = '﻿' + linhas.map((l) => l.map(celula).join(';')).join('\r\n')
+    const url = URL.createObjectURL(new Blob([csv], { type: 'text/csv;charset=utf-8' }))
+    const link = document.createElement('a')
+    link.href = url
+    link.download = `organizacao-blocos-${new Date().toISOString().slice(0, 10)}.csv`
+    document.body.appendChild(link)
+    link.click()
+    link.remove()
+    URL.revokeObjectURL(url)
+  }
+
   const termo = busca.trim().toLowerCase()
   const passaFiltro = (u: UnidadeBloco) =>
     (!termo || u.premio_nome.toLowerCase().includes(termo)) &&
@@ -1030,7 +1084,7 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
           </button>
         </div>
 
-        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+        <div className="mt-3 grid gap-2 sm:grid-cols-3 lg:grid-cols-[1fr_1fr_1fr_auto]">
           <input
             type="search"
             className="campo"
@@ -1052,6 +1106,15 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
             <option value="disponivel">Aguardando sorteio</option>
             <option value="sorteada">Já sorteadas</option>
           </select>
+          <button
+            type="button"
+            className="btn-neutro sm:col-span-3 lg:col-span-1"
+            onClick={exportar}
+            title="Baixa uma planilha (CSV) com todos os blocos e a sequência dos prêmios, como está na tela"
+          >
+            <Icone nome="baixar" className="h-4 w-4" />
+            Exportar
+          </button>
         </div>
 
         {selecionadas.length > 0 && (
@@ -1184,15 +1247,30 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
                     <p className="text-xs text-slate-500">{itens.length} unidade(s) disponível(is) para distribuir</p>
                   </>
                 )}
-                {selecionaveis.length > 0 && (
-                  <button
-                    type="button"
-                    className="text-xs font-semibold text-marca-700 hover:underline"
-                    onClick={() => setSelecionadas((atual) => [...new Set([...atual, ...selecionaveis])])}
-                  >
-                    Selecionar {termo ? 'as encontradas' : 'todas'} ({selecionaveis.length})
-                  </button>
-                )}
+                <div className="flex items-center justify-between gap-2">
+                  {selecionaveis.length > 0 ? (
+                    <button
+                      type="button"
+                      className="text-xs font-semibold text-marca-700 hover:underline"
+                      onClick={() => setSelecionadas((atual) => [...new Set([...atual, ...selecionaveis])])}
+                    >
+                      Selecionar {termo ? 'as encontradas' : 'todas'} ({selecionaveis.length})
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  {bloco && recebe(chave) && itens.length > 1 && (
+                    <button
+                      type="button"
+                      className="btn-icone h-8 w-8 text-marca-700"
+                      onClick={() => misturarBloco(chave)}
+                      aria-label={`Misturar os prêmios do ${bloco.nome}`}
+                      title="Misturar os prêmios deste bloco (sem repetir o mesmo prêmio seguido, quando possível)"
+                    >
+                      <Icone nome="dado" className="h-5 w-5" />
+                    </button>
+                  )}
+                </div>
               </header>
               <ol className="flex min-h-20 flex-1 flex-col gap-1.5 p-2">
                 {filtrados.map((u) => {

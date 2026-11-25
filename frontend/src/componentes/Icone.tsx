@@ -6,6 +6,8 @@ const CAMINHOS = {
   inicio: 'M3 12 12 4l9 8M5 10v10h5v-6h4v6h5V10',
   painel: 'M4 4h7v7H4zM13 4h7v4h-7zM13 10h7v10h-7zM4 13h7v7H4z',
   sorteio: 'M4 5h16v14H4zM9 9.5h.01M15 9.5h.01M12 12h.01M9 14.5h.01M15 14.5h.01',
+  // Dado: quadrado arredondado com cinco pontos (círculos pequenos, bem visíveis).
+  dado: 'M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zM8.5 7.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M15.5 7.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M12 11.25a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M8.5 14.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M15.5 14.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5',
   recepcao: 'M4 13h4l2 3h4l2-3h4M4 13l2-8h12l2 8v6H4z',
   credenciamento: 'M8 4h8v3H8zM6 6H5v14h14V6h-1M9 13a3 3 0 1 0 6 0 3 3 0 0 0-6 0M8 19c.6-1.8 2.1-3 4-3s3.4 1.2 4 3',
   blocos: 'M12 3 3 8l9 5 9-5zM3 12.5l9 5 9-5M3 17l9 5 9-5',
