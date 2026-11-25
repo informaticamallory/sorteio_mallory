@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Link, Navigate, useNavigate } from 'react-router-dom'
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom'
 import { requisitar } from '../api'
 import { ROTULO_PAPEL, useAuth } from '../auth'
 import Casca, { type ItemMenu } from '../componentes/Casca'
@@ -10,6 +10,8 @@ import type { Evento } from '../types'
 export default function Eventos() {
   const { usuario, pode } = useAuth()
   const navegar = useNavigate()
+  // "Todos os eventos" no menu pede a lista: não pular direto para o único evento.
+  const pediuLista = (useLocation().state as { lista?: boolean } | null)?.lista === true
   const [eventos, setEventos] = useState<Evento[] | null>(null)
   const [erro, setErro] = useState('')
   const [criando, setCriando] = useState(false)
@@ -94,11 +96,12 @@ export default function Eventos() {
 
   // Equipe que não administra eventos e só tem um evento: vai direto à
   // própria tela (Operador -> Sorteio, Recepção -> Credenciamento).
-  if (eventos?.length === 1 && !pode('gerenciar_eventos')) {
+  if (eventos?.length === 1 && !pode('gerenciar_eventos') && !pediuLista) {
     return <Navigate to={`/eventos/${eventos[0].id}`} replace />
   }
 
   const itens: ItemMenu[] = [{ para: '/eventos', rotulo: 'Eventos', icone: 'eventos', fim: true }]
+  if (pode('acompanhar_credenciamento')) itens.push({ para: '/recepcao', rotulo: 'Check-in', icone: 'cracha' })
   if (pode('gerenciar_usuarios')) itens.push({ para: '/usuarios', rotulo: 'Usuários', icone: 'usuarios' })
 
   return (

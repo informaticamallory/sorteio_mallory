@@ -79,11 +79,19 @@ export default function RecepcaoAtendimento() {
             Trocar evento
           </button>
         )}
-        {evento && usuario && pode('acompanhar_credenciamento') && (
-          <Link to={`/eventos/${evento.id}/credenciamento`} className={CLASSE_BOTAO_CABECALHO} title="Credenciamento e pulseiras">
-            <Icone nome="credenciamento" className="h-4 w-4" />
-            <span className="hidden sm:inline">Credenciamento</span>
+        {evento && usuario && pode('acompanhar_credenciamento') ? (
+          <Link to={`/eventos/${evento.id}/credenciamento`} className={CLASSE_BOTAO_CABECALHO} title="Voltar ao Credenciamento do evento">
+            <Icone nome="voltar" className="h-4 w-4" />
+            <span className="hidden sm:inline">Voltar ao evento</span>
           </Link>
+        ) : (
+          // Equipe logada sem evento aberto aqui (Recepção fechada ou evento não escolhido).
+          usuario && pode('visualizar_evento') && (
+            <Link to="/eventos" className={CLASSE_BOTAO_CABECALHO} title="Voltar aos eventos">
+              <Icone nome="voltar" className="h-4 w-4" />
+              <span className="hidden sm:inline">Voltar aos eventos</span>
+            </Link>
+          )
         )}
         <Link to="/login" className={CLASSE_BOTAO_CABECALHO} title="Tela inicial">
           <Icone nome="inicio" className="h-4 w-4" />

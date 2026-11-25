@@ -92,6 +92,10 @@ export default function PainelLayout() {
   const abas = ABAS.filter((aba) => pode(aba.permissao))
   const atual = ABAS.find((aba) => local.pathname.endsWith(`/${aba.para}`))
   const itens: ItemMenu[] = abas.map((aba) => ({ para: aba.para, rotulo: aba.rotulo, icone: aba.icone }))
+  // Atalho para o check-in (tela da Recepção, que tem botão de volta ao Credenciamento).
+  if (pode('acompanhar_credenciamento')) {
+    itens.push({ para: '/recepcao', rotulo: 'Check-in', icone: 'cracha' })
+  }
   if (pode('controlar_telao')) {
     itens.push({ para: `/telao/${evento.telao_token}`, rotulo: 'Abrir telão', icone: 'telao', externo: true })
   }
@@ -110,8 +114,12 @@ export default function PainelLayout() {
           <p className="truncate text-sm font-medium text-white" title={evento.nome}>
             {evento.nome}
           </p>
-          {pode('gerenciar_eventos') && (
-            <Link to="/eventos" className="mt-1 inline-flex items-center gap-1 text-xs hover:text-white">
+          {pode('visualizar_evento') && (
+            <Link
+              to="/eventos"
+              state={{ lista: true }}
+              className="mt-1 inline-flex items-center gap-1 text-xs hover:text-white"
+            >
               <Icone nome="voltar" className="h-3.5 w-3.5" />
               Todos os eventos
             </Link>
