@@ -369,7 +369,7 @@ texto "Sorteios Mallory".
 | Check-in | Mostra os dados antes de confirmar; confirmar só **marca** presença (nunca desmarca). Repetir não duplica. Auditoria `presenca_alterada` com origem `recepcao` e o IP. Avisa se a pessoa não está participando. |
 | Consulta | Até 20 resultados: matrícula, nome, número, check-in e prêmios sorteados (nome do prêmio, bloco, retirado ou não). Sem foto, setor, pulseira ou dados de conta. |
 | Surpresa do palco | Um prêmio só aparece na consulta depois que o telão revelou o ganhador. |
-| Conta Recepção | Quem entrar com usuário e senha de perfil Recepção cai na mesma tela. |
+| Conta Recepção | Quem entrar com usuário e senha de perfil Recepção cai no **Credenciamento** do evento e também tem a **Central de Entregas** (localizar, confirmar e histórico; não desfaz nem exporta). |
 
 > **Risco aceito:** como a Recepção é aberta, qualquer pessoa com o endereço do sistema
 > consegue confirmar presenças e consultar nome, matrícula, número e prêmios. Mantenha o
@@ -495,7 +495,7 @@ rota a rota, perfil a perfil. Uma rota nova sem decisão de acesso faz o teste f
 | Consultar resultados e histórico de sorteios | ✔ | ✔ | ✔ | — | — | — |
 | Visão geral, relatório e exportações | ✔ | ✔ | — | — | — | — |
 | Credenciamento: presença, pulseira, liberar novo cadastro | ✔ | ✔ | — | ✔ | — | — |
-| Central de Entregas: localizar, confirmar, histórico | ✔ | ✔ | — | — | ✔ | — |
+| Central de Entregas: localizar, confirmar, histórico | ✔ | ✔ | — | ✔ | ✔ | — |
 | Desfazer entrega (com justificativa) | ✔ | ✔ | — | — | — | — |
 | Exportar histórico de entregas | ✔ | ✔ | — | — | — | — |
 | Própria área pessoal e notificações | ✔ | — | — | — | — | ✔ |

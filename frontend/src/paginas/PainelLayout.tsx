@@ -19,14 +19,15 @@ export function usePainel(): ContextoPainel {
   return useOutletContext<ContextoPainel>()
 }
 
-// A ordem define a tela inicial de cada perfil: a primeira que ele pode ver.
-// Admin e Organizador caem na Visão geral; Sorteador em Sorteio; a conta
-// Recepção no Credenciamento. O check-in e a consulta públicos ficam em /recepcao.
+// Ordem do menu. A tela inicial segue ORDEM_INICIAL: Admin e Organizador caem
+// na Visão geral; Sorteador em Sorteio; a conta Recepção no Credenciamento
+// (ela também tem Entregas); a Equipe de Entregas em Entregas. O check-in e a
+// consulta públicos ficam em /recepcao.
 export const ABAS: { para: string; rotulo: string; permissao: Permissao; icone: NomeIcone; titulo?: string }[] = [
   { para: 'visao-geral', rotulo: 'Visão geral', permissao: 'consultar_relatorios', icone: 'painel' },
   { para: 'sorteio', rotulo: 'Sorteio', permissao: 'controlar_sorteio', icone: 'sorteio' },
-  { para: 'entregas', rotulo: 'Entregas', permissao: 'pesquisar_colaboradores', icone: 'entregas', titulo: 'Central de Entregas' },
   { para: 'credenciamento', rotulo: 'Credenciamento', permissao: 'acompanhar_credenciamento', icone: 'credenciamento' },
+  { para: 'entregas', rotulo: 'Entregas', permissao: 'pesquisar_colaboradores', icone: 'entregas', titulo: 'Central de Entregas' },
   { para: 'blocos', rotulo: 'Blocos', permissao: 'visualizar_blocos', icone: 'blocos', titulo: 'Gerenciamento de Blocos' },
   { para: 'participantes', rotulo: 'Participantes', permissao: 'gerenciar_participantes', icone: 'participantes' },
   { para: 'premios', rotulo: 'Prêmios', permissao: 'cadastrar_premios', icone: 'premios' },
@@ -36,8 +37,12 @@ export const ABAS: { para: string; rotulo: string; permissao: Permissao; icone: 
   { para: 'configuracao', rotulo: 'Configuração', permissao: 'configurar_evento', icone: 'configuracao' },
 ]
 
+const ORDEM_INICIAL = ['visao-geral', 'sorteio', 'credenciamento', 'entregas']
+
 export function abaInicial(pode: (p: Permissao) => boolean): string | null {
-  return ABAS.find((aba) => pode(aba.permissao))?.para ?? null
+  const permitidas = ABAS.filter((aba) => pode(aba.permissao))
+  const preferida = ORDEM_INICIAL.find((para) => permitidas.some((aba) => aba.para === para))
+  return preferida ?? permitidas[0]?.para ?? null
 }
 
 /** Rota índice do evento: abre a primeira aba permitida ao perfil. */

@@ -89,7 +89,7 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     # sorteio e telao
     ("GET", f"{E}/sorteio/elegiveis"): {A, S},
     ("POST", f"{E}/sorteio"): {A, S},
-    ("POST", f"{E}/sorteios/{{draw_id}}/entrega"): {A, O, N},
+    ("POST", f"{E}/sorteios/{{draw_id}}/entrega"): {A, O, R, N},
     ("POST", f"{E}/sorteios/{{draw_id}}/anular"): {A},
     ("GET", f"{E}/historico"): {A, S, O},
     ("GET", f"{E}/telao/estado"): {A, S},
@@ -105,14 +105,14 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("GET", "/api/sorteios/export.csv"): {A, O},
     ("GET", "/api/sorteios/export.xlsx"): {A, O},
     ("GET", "/api/sorteios/{draw_id}"): {A, S, O},
-    # Central de Entregas (admin, RH e Equipe de Entregas; exportar so admin e RH)
-    ("GET", f"{E}/recepcao/busca"): {A, O, N},
-    ("GET", f"{E}/recepcao/atendimentos"): {A, O, N},
-    ("GET", f"{E}/recepcao/resumo"): {A, O, N},
-    ("GET", f"{E}/recepcao/filtros"): {A, O, N},
-    ("GET", f"{E}/recepcao/premiados"): {A, O, N},
-    ("POST", f"{E}/recepcao/entregar"): {A, O, N},
-    ("GET", f"{E}/recepcao/historico"): {A, O, N},
+    # Central de Entregas (admin, RH, Recepcao e Equipe de Entregas; exportar so admin e RH)
+    ("GET", f"{E}/recepcao/busca"): {A, O, R, N},
+    ("GET", f"{E}/recepcao/atendimentos"): {A, O, R, N},
+    ("GET", f"{E}/recepcao/resumo"): {A, O, R, N},
+    ("GET", f"{E}/recepcao/filtros"): {A, O, R, N},
+    ("GET", f"{E}/recepcao/premiados"): {A, O, R, N},
+    ("POST", f"{E}/recepcao/entregar"): {A, O, R, N},
+    ("GET", f"{E}/recepcao/historico"): {A, O, R, N},
     ("GET", f"{E}/recepcao/historico/export.csv"): {A, O},
     # credenciamento (admin, RH e Recepcao)
     ("GET", f"{E}/credenciamento/resumo"): {A, O, R},

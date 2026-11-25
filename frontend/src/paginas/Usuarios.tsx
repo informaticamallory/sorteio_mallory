@@ -13,7 +13,7 @@ const DESCRICAO_PAPEL: Partial<Record<Papel, string>> = {
   ORGANIZADOR:
     'Configura o evento, participantes, prêmios, blocos, regras, credenciamento, entregas (inclusive desfazer) e relatórios. Sorteia só se autorizado.',
   SORTEIO: 'Opera os sorteios: blocos, telão e resultados.',
-  RECEPCAO: 'Check-in, credenciamento e vínculo de pulseiras.',
+  RECEPCAO: 'Check-in, credenciamento, vínculo de pulseiras e Central de Entregas (localizar e confirmar; não desfaz).',
   ENTREGAS: 'Central de Entregas: localizar ganhadores, confirmar entregas e ver o histórico. Não desfaz entregas.',
 }
 

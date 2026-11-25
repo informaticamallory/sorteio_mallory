@@ -97,12 +97,17 @@ PERMISSOES_POR_PAPEL: dict[Papel, frozenset[Permissao]] = {
         }
     ),
     # Recepcao: o check-in e a consulta do numero sao publicos (/recepcao);
-    # com a conta, tambem acompanha o credenciamento e vincula pulseiras.
+    # com a conta, acompanha o credenciamento, vincula pulseiras e atende na
+    # Central de Entregas como a Equipe de Entregas (localizar, confirmar,
+    # historico). Nao desfaz entregas nem exporta.
     Papel.RECEPCAO: frozenset(
         {
             Permissao.VISUALIZAR_EVENTO,
             Permissao.ACOMPANHAR_CREDENCIAMENTO,
             Permissao.AUXILIAR_CREDENCIAMENTO,
+            Permissao.PESQUISAR_COLABORADORES,
+            Permissao.CONFIRMAR_ENTREGA,
+            Permissao.CONSULTAR_ATENDIMENTOS,
         }
     ),
     # Equipe de Entregas: Central de Entregas (localizar, confirmar, historico).

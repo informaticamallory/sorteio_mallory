@@ -96,14 +96,21 @@ def test_equipe_de_entregas_so_entrega():
     }
 
 
-def test_recepcao_faz_checkin_credenciamento_e_pulseiras():
-    # O check-in e a consulta do numero sao publicos; com a conta, tambem o credenciamento.
+def test_recepcao_faz_checkin_credenciamento_pulseiras_e_entregas():
+    # O check-in e a consulta do numero sao publicos; com a conta, tambem o
+    # credenciamento e a Central de Entregas (como a Equipe de Entregas).
     assert permissoes_do_papel("RECEPCAO") == {
         Permissao.VISUALIZAR_EVENTO,
         Permissao.ACOMPANHAR_CREDENCIAMENTO,
         Permissao.AUXILIAR_CREDENCIAMENTO,
+        Permissao.PESQUISAR_COLABORADORES,
+        Permissao.CONFIRMAR_ENTREGA,
+        Permissao.CONSULTAR_ATENDIMENTOS,
         Permissao.ACESSAR_AREA_PESSOAL,
     }
+    # Desfazer entrega e exportar continuam so com admin e RH.
+    assert Permissao.DESFAZER_ENTREGA not in permissoes_do_papel("RECEPCAO")
+    assert Permissao.EXPORTAR_RESULTADOS not in permissoes_do_papel("RECEPCAO")
 
 
 def test_colaborador_so_acessa_a_propria_area():
