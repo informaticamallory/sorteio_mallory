@@ -127,19 +127,24 @@ def test_fim_de_bloco_durante_a_animacao_nao_corta_a_revelacao(cliente, auth):
 
 
 # ------------------------------------------------------------------ tempo e controles
-def test_cada_ganhador_fica_pelo_menos_5_segundos(cliente, auth):
+def test_cada_ganhador_fica_pelo_menos_1_segundo(cliente, auth):
     event_id, _p, _u = montar_evento(participantes=1)
-    for segundos in (0, 4):
+    for segundos in (0, -1, 61):
         resposta = cliente.patch(_api(event_id, ""), json={"carrossel_segundos": segundos}, headers=auth)
         assert resposta.status_code == 422
+    assert cliente.patch(_api(event_id, ""), json={"carrossel_segundos": 1}, headers=auth).json()["carrossel_segundos"] == 1
     assert cliente.patch(_api(event_id, ""), json={"carrossel_segundos": 9}, headers=auth).json()["carrossel_segundos"] == 9
 
-    # Mesmo que o banco tenha um valor menor (manipulado), o servidor usa 5 s.
+    # Com 1 s, o carrossel avanca a cada segundo.
     with session_scope() as db:
-        ds = DisplayState(event_id=999, carrossel_indice=0, carrossel_duracao_s=1, carrossel_desde=utcnow() - timedelta(seconds=4.9))
+        ds = DisplayState(event_id=999, carrossel_indice=0, carrossel_duracao_s=1, carrossel_desde=utcnow() - timedelta(seconds=0.9))
         assert carrossel.posicao(ds, total=10) == 0
-        ds.carrossel_desde = utcnow() - timedelta(seconds=5.1)
+        ds.carrossel_desde = utcnow() - timedelta(seconds=1.1)
         assert carrossel.posicao(ds, total=10) == 1
+        # Mesmo que o banco tenha um valor menor (manipulado), o servidor usa 1 s.
+        ds.carrossel_duracao_s = 0
+        ds.carrossel_desde = utcnow() - timedelta(seconds=0.5)
+        assert carrossel.posicao(ds, total=10) == 0
         db.rollback()
 
 

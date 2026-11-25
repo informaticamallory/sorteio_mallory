@@ -139,7 +139,7 @@ class Event(Base):
     __tablename__ = "events"
     __table_args__ = (
         CheckConstraint("capacidade_bloco_padrao >= 1", name="ck_events_capacidade_bloco_positiva"),
-        CheckConstraint("carrossel_segundos >= 5", name="ck_events_carrossel_minimo"),
+        CheckConstraint("carrossel_segundos >= 1", name="ck_events_carrossel_minimo"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

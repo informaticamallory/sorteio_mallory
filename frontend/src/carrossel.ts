@@ -43,7 +43,7 @@ export function usePosicaoCarrossel(
   if (!rodando || !carrossel.rodando_desde) {
     return { posicao: Math.min(Math.max(carrossel.indice, 0), total), progresso: 0 }
   }
-  const duracaoMs = Math.max(5, carrossel.duracao_s) * 1000
+  const duracaoMs = Math.max(1, carrossel.duracao_s) * 1000
   const agoraServidor = Date.now() - diferenca
   const decorrido = Math.max(0, agoraServidor - instante(carrossel.rodando_desde))
   const posicao = Math.min(total, carrossel.indice + Math.floor(decorrido / duracaoMs))

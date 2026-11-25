@@ -185,7 +185,7 @@ class EventoConfigIn(BaseModel):
     autocadastro_inicio: datetime | None = None
     autocadastro_fim: datetime | None = None
     # Carrossel: cada ganhador fica no telao por pelo menos 5 segundos.
-    carrossel_segundos: int | None = Field(default=None, ge=5, le=60)
+    carrossel_segundos: int | None = Field(default=None, ge=1, le=60)
 
     @field_validator("autocadastro_inicio", "autocadastro_fim")
     @classmethod

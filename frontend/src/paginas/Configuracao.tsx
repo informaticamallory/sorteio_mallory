@@ -273,7 +273,7 @@ export default function Configuracao() {
             <input
               id="cfg-carrossel"
               type="range"
-              min={5}
+              min={1}
               max={30}
               step={1}
               value={form.carrossel_segundos}
@@ -281,7 +281,7 @@ export default function Configuracao() {
               className="w-full accent-marca-800"
             />
             <p className="mt-1 text-xs text-slate-500">
-              Mínimo de 5 segundos. Vale a partir da próxima apresentação.
+              Mínimo de 1 segundo. Vale a partir da próxima apresentação.
             </p>
           </div>
           <div>
