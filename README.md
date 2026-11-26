@@ -258,6 +258,7 @@ arquivo gerado — no SQLite, colunas com FK devem ser adicionadas com `ALTER TA
 | `0011` | Modo de sorteio por evento: `events.modo_sorteio` (`numero_sorte` nos eventos existentes — nada muda), `events.matricula_faixa_inicio` e `events.matricula_faixa_fim` (vazias). |
 | `0012` | `events.recepcao_publica_ativa`: Recepção sem login (check-in e consulta) só com a chave ligada. Desligada, inclusive nos eventos existentes. |
 | `0018` | `events.tema_telao` (`classico` ou `mallory_claro`, CHECK): visual do telão por evento. Os eventos existentes ficam no `classico`. Só acréscimo. |
+| `0019` | `events.claro_cor_fundo`, `claro_cor_painel`, `claro_cor_destaque` e `claro_cor_texto`: cores próprias do tema `mallory_claro`, começando na paleta Mallory. Só acréscimos. |
 
 ### Histórico com pesquisa
 

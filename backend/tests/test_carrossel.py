@@ -133,7 +133,9 @@ def test_ultimo_sorteio_do_bloco_agenda_o_carrossel_sozinho(cliente, auth):
     assert estado["carrossel_agendado_em"] is not None
     with session_scope() as db:
         ds = db.get(DisplayState, event_id)
-        assert (ds.carrossel_desde - ds.revelar_em).total_seconds() == pytest.approx(carrossel.PAUSA_APOS_REVELACAO_S)
+        assert (ds.carrossel_desde - ds.revelar_em).total_seconds() == pytest.approx(
+            carrossel.PAUSA_APOS_REVELACAO_S + carrossel.EXTRA_REVELACAO_ROLOS_S
+        )
         # Revelacao e pausa terminadas: o telao passa sozinho ao carrossel.
         ds.revelar_em = utcnow() - timedelta(seconds=10)
         ds.carrossel_desde = utcnow() - timedelta(seconds=1)
@@ -149,7 +151,7 @@ def test_ultimo_sorteio_do_bloco_agenda_o_carrossel_sozinho(cliente, auth):
     assert _telao(cliente, event_id)["estado"] == "carrossel_ganhadores"
 
 
-def test_tema_claro_espera_a_revelacao_dos_rolos_antes_do_carrossel(cliente, auth):
+def test_tema_claro_tambem_espera_a_revelacao_dos_rolos(cliente, auth):
     event_id, _participantes, unidades = montar_evento(participantes=3, quantidade_premio=1)
     configurar_evento(event_id, autocadastro_ativo=False, duracao_animacao_ms=2000, tema_telao="mallory_claro")
     bloco_id = cliente.post(_api(event_id, "/blocos/distribuir"), json={"capacidade": 1}, headers=auth).json()["blocos"][0]["id"]
@@ -160,7 +162,7 @@ def test_tema_claro_espera_a_revelacao_dos_rolos_antes_do_carrossel(cliente, aut
     assert resposta.status_code == 200, resposta.text
     with session_scope() as db:
         ds = db.get(DisplayState, event_id)
-        esperado = carrossel.PAUSA_APOS_REVELACAO_S + carrossel.EXTRA_REVELACAO_TEMA_CLARO_S
+        esperado = carrossel.PAUSA_APOS_REVELACAO_S + carrossel.EXTRA_REVELACAO_ROLOS_S
         assert (ds.carrossel_desde - ds.revelar_em).total_seconds() == pytest.approx(esperado)
 
 

@@ -334,6 +334,10 @@ export interface Evento {
   autocadastro_fim: string | null
   carrossel_segundos: number
   tema_telao?: TemaTelao
+  claro_cor_fundo?: string
+  claro_cor_painel?: string
+  claro_cor_destaque?: string
+  claro_cor_texto?: string
   demo: boolean
   criado_em: string
 }
@@ -656,6 +660,8 @@ export interface TelaoEventoPayload {
   duracao_animacao_ms: number
   fuso_horario: string
   tema_telao?: TemaTelao
+  /** Cores do tema "Mallory claro" (configuráveis por evento). */
+  cores_claro?: { fundo: string; painel: string; destaque: string; texto: string }
 }
 
 export type TemaTelao = 'classico' | 'mallory_claro'

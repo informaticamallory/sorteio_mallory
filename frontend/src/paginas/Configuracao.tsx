@@ -5,6 +5,7 @@ import UploadImagem from '../componentes/UploadImagem'
 import { Aviso } from '../componentes/ui'
 import type { Evento } from '../types'
 import { usePainel } from './PainelLayout'
+import { PALETA_MALLORY } from './TelaoClaro'
 
 const FUSOS = [
   'America/Sao_Paulo',
@@ -34,6 +35,10 @@ type Formulario = Pick<
   | 'fuso_horario'
   | 'carrossel_segundos'
   | 'tema_telao'
+  | 'claro_cor_fundo'
+  | 'claro_cor_painel'
+  | 'claro_cor_destaque'
+  | 'claro_cor_texto'
   | 'recepcao_publica_ativa'
   | 'autocadastro_ativo'
   | 'autocadastro_inicio'
@@ -109,6 +114,10 @@ export default function Configuracao() {
       fuso_horario: evento.fuso_horario,
       carrossel_segundos: evento.carrossel_segundos,
       tema_telao: evento.tema_telao ?? 'classico',
+      claro_cor_fundo: evento.claro_cor_fundo ?? PALETA_MALLORY.fundo,
+      claro_cor_painel: evento.claro_cor_painel ?? PALETA_MALLORY.painel,
+      claro_cor_destaque: evento.claro_cor_destaque ?? PALETA_MALLORY.destaque,
+      claro_cor_texto: evento.claro_cor_texto ?? PALETA_MALLORY.texto,
       recepcao_publica_ativa: evento.recepcao_publica_ativa,
       autocadastro_ativo: evento.autocadastro_ativo,
       autocadastro_inicio: evento.autocadastro_inicio,
@@ -178,8 +187,54 @@ export default function Configuracao() {
         </div>
       </section>
 
+      {form.tema_telao === 'mallory_claro' ? (
+        <section className="cartao p-5">
+          <div className="mb-1 flex flex-wrap items-center justify-between gap-2">
+            <h2 className="font-semibold text-slate-900">Cores da apresentação — Mallory claro</h2>
+            <button
+              type="button"
+              className="text-sm font-medium text-marca-700 hover:underline"
+              onClick={() =>
+                atualizar({
+                  claro_cor_fundo: PALETA_MALLORY.fundo,
+                  claro_cor_painel: PALETA_MALLORY.painel,
+                  claro_cor_destaque: PALETA_MALLORY.destaque,
+                  claro_cor_texto: PALETA_MALLORY.texto,
+                })
+              }
+            >
+              Restaurar paleta Mallory
+            </button>
+          </div>
+          <p className="mb-4 text-sm text-slate-500">
+            Cores só deste tema (as do Clássico ficam guardadas). Mantenha bom contraste entre fundo e texto.
+          </p>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <Cor rotulo="Fundo" valor={form.claro_cor_fundo ?? PALETA_MALLORY.fundo} aoMudar={(v) => atualizar({ claro_cor_fundo: v })} />
+            <Cor rotulo="Painéis" valor={form.claro_cor_painel ?? PALETA_MALLORY.painel} aoMudar={(v) => atualizar({ claro_cor_painel: v })} />
+            <Cor rotulo="Destaque" valor={form.claro_cor_destaque ?? PALETA_MALLORY.destaque} aoMudar={(v) => atualizar({ claro_cor_destaque: v })} />
+            <Cor rotulo="Texto" valor={form.claro_cor_texto ?? PALETA_MALLORY.texto} aoMudar={(v) => atualizar({ claro_cor_texto: v })} />
+          </div>
+          <div
+            className="mt-4 flex items-center gap-4 rounded-lg p-5"
+            style={{ background: form.claro_cor_fundo, color: form.claro_cor_texto, fontFamily: "'Sora', sans-serif" }}
+          >
+            <div className="flex-1 rounded-xl p-4" style={{ background: form.claro_cor_painel }}>
+              <p className="text-xs">Vencedor</p>
+              <p className="text-xl font-extrabold">Maria de Souza</p>
+            </div>
+            <span
+              className="rounded-2xl px-5 py-2 text-3xl font-extrabold text-white"
+              style={{ background: form.claro_cor_destaque }}
+            >
+              0427
+            </span>
+          </div>
+          <p className="mt-2 text-xs text-slate-500">O logo continua o oficial da Mallory, em laranja.</p>
+        </section>
+      ) : (
       <section className="cartao p-5">
-        <h2 className="mb-1 font-semibold text-slate-900">Cores da apresentação</h2>
+        <h2 className="mb-1 font-semibold text-slate-900">Cores da apresentação — Clássico</h2>
         <p className="mb-4 text-sm text-slate-500">
           Mantenha bom contraste entre fundo e texto para leitura à distância.
         </p>
@@ -207,6 +262,7 @@ export default function Configuracao() {
           </p>
         </div>
       </section>
+      )}
 
       <section className="cartao p-5">
         <h2 className="mb-4 font-semibold text-slate-900">Mensagens e regras</h2>
@@ -258,8 +314,8 @@ export default function Configuracao() {
             <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Visual do telão">
               {(
                 [
-                  ['classico', 'Clássico', 'Azul e dourado, com as cores deste evento. Nomes girando no sorteio.'],
-                  ['mallory_claro', 'Mallory claro', 'Cinza e laranja Mallory, fonte Sora. Números girando como caça-níquel.'],
+                  ['classico', 'Clássico', 'Fundo escuro com detalhes dourados e anúncio festivo. Cores editáveis.'],
+                  ['mallory_claro', 'Mallory claro', 'Modelo claro da Mallory, fonte Sora. Cores editáveis (paleta Mallory).'],
                 ] as const
               ).map(([valor, titulo, descricao]) => {
                 const ativo = (form.tema_telao ?? 'classico') === valor
@@ -285,10 +341,10 @@ export default function Configuracao() {
                 )
               })}
             </div>
-            {form.tema_telao === 'mallory_claro' && (
+            {(
               <p className="mt-1 text-xs text-slate-500">
-                No Mallory claro o telão usa a paleta da Mallory (as cores do evento ficam para o Clássico). Para os
-                números girarem bem, deixe o suspense em pelo menos 2 segundos.
+                Nos dois temas o sorteio gira números como caça-níquel. Cada tema guarda as próprias cores (seção
+                Cores, acima). Para os números girarem bem, deixe o suspense em pelo menos 2 segundos.
               </p>
             )}
           </div>

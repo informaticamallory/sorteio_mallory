@@ -34,7 +34,7 @@ def test_reconexao_recupera_resultado_sem_novo_sorteio(cliente, auth):
     durante = cliente.get(f"/api/public/{token}/estado").json()
     assert durante["estado"] == "sorteando"
     assert durante["ganhador"] is None  # nada de vencedor antes da revelacao
-    assert len(durante["nomes_animacao"]) > 0
+    assert durante["digitos_animacao"] == 4  # so quantos rolos girar
 
     # duracao_animacao_ms do fixture = 1000
     time.sleep(1.2)
@@ -102,7 +102,9 @@ def test_tema_mallory_claro_gira_numeros_sem_enviar_nomes(cliente, auth):
     assert depois["digitos_animacao"] is None
 
 
-def test_animacao_nao_mostra_inelegiveis(cliente, auth):
+def test_animacao_nao_envia_nomes_ao_telao_no_classico(cliente, auth):
+    """Os dois temas giram numeros: durante o sorteio o telao nao recebe nenhum
+    nome (nem de elegiveis nem de inelegiveis), so a quantidade de digitos."""
     event_id, ids, unidades = montar_evento(participantes=6, presentes=2)
     token = _token_telao(event_id)
 
@@ -112,9 +114,28 @@ def test_animacao_nao_mostra_inelegiveis(cliente, auth):
         headers=auth,
     )
     estado = cliente.get(f"/api/public/{token}/estado").json()
-    nomes = set(estado["nomes_animacao"])
-    assert nomes <= {"Participante 1", "Participante 2"}
-    assert "Participante 3" not in nomes
+    assert estado["evento"]["tema_telao"] == "classico"
+    assert estado["nomes_animacao"] == []
+    assert estado["digitos_animacao"] == 4
+    bruto = cliente.get(f"/api/public/{token}/estado").text
+    assert "Participante" not in bruto
+
+
+def test_cores_do_tema_claro_sao_proprias_e_validadas(cliente, auth):
+    event_id, _, _ = montar_evento()
+    token = _token_telao(event_id)
+    padrao = cliente.get(f"/api/public/{token}/estado").json()["evento"]["cores_claro"]
+    assert padrao == {"fundo": "#eeeeee", "painel": "#dddddd", "destaque": "#ff5d1d", "texto": "#606060"}
+
+    url = f"/api/events/{event_id}"
+    assert cliente.patch(url, json={"claro_cor_destaque": "laranja"}, headers=auth).status_code == 422
+    resposta = cliente.patch(url, json={"claro_cor_destaque": "#0055aa", "claro_cor_fundo": None}, headers=auth)
+    assert resposta.status_code == 200
+    evento = resposta.json()
+    assert evento["claro_cor_destaque"] == "#0055aa" and evento["claro_cor_fundo"] == "#eeeeee"
+    # As cores do classico nao mudam.
+    assert evento["cor_primaria"] == cliente.get(url, headers=auth).json()["cor_primaria"]
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["cores_claro"]["destaque"] == "#0055aa"
 
 
 def test_telao_sem_autenticacao_nao_acessa_rotas_administrativas(cliente):

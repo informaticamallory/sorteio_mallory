@@ -49,7 +49,8 @@ VISUALIZAR = requer(Permissao.VISUALIZAR_EVENTO)
 PREVIA_REGRAS = requer(Permissao.DEFINIR_REGRAS)
 
 COR_RE = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
-CAMPOS_COR = ("cor_fundo", "cor_primaria", "cor_texto", "cor_destaque")
+CAMPOS_COR_CLARO = ("claro_cor_fundo", "claro_cor_painel", "claro_cor_destaque", "claro_cor_texto")
+CAMPOS_COR = ("cor_fundo", "cor_primaria", "cor_texto", "cor_destaque", *CAMPOS_COR_CLARO)
 
 
 @router.get("", response_model=list[EventoOut], dependencies=VISUALIZAR)
@@ -128,8 +129,10 @@ def atualizar_config(
     user: User = Depends(CONFIGURAR),
 ) -> Event:
     alterado = dados.model_dump(exclude_unset=True)
-    if "tema_telao" in alterado and alterado["tema_telao"] is None:
-        del alterado["tema_telao"]  # tema e obrigatorio: null nao muda nada
+    # Tema e cores do claro sao obrigatorios: null nao muda nada.
+    for campo in ("tema_telao", *CAMPOS_COR_CLARO):
+        if campo in alterado and alterado[campo] is None:
+            del alterado[campo]
     for campo in CAMPOS_COR:
         valor = alterado.get(campo)
         if valor is not None and not COR_RE.match(valor):

@@ -194,12 +194,14 @@
 @font-face { font-family: 'Sora'; font-weight: 700; font-display: swap; src: url('/fonts/sora/sora-700.ttf') format('truetype'); }
 @font-face { font-family: 'Sora'; font-weight: 800; font-display: swap; src: url('/fonts/sora/sora-800.ttf') format('truetype'); }
 
+/* Padrao (paleta Mallory); o telao sobrescreve com as cores do evento. */
 .telao-claro {
   --tc-fundo: #eeeeee;
   --tc-painel: #dddddd;
   --tc-texto: #606060;
-  --tc-laranja: #ff5d1d;
-  --tc-branco: #ffffff;
+  --tc-destaque: #ff5d1d;
+  --pontos-base: var(--tc-painel);
+  --pontos-destaque: var(--tc-destaque);
   background: var(--tc-fundo);
   color: var(--tc-texto);
   font-family: 'Sora', ui-sans-serif, system-ui, sans-serif;
@@ -224,8 +226,8 @@
   animation: rolo-pousa 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
 }
 @keyframes pontos-claro {
-  0%, 100% { background: #dddddd; }
-  50% { background: #ff5d1d; }
+  0%, 100% { background: var(--pontos-base, #dddddd); }
+  50% { background: var(--pontos-destaque, #ff5d1d); }
 }
 
 /* ------------------------------------------------ bilhete do Cartão da Sorte

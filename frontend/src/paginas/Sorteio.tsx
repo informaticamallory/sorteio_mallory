@@ -314,9 +314,9 @@ export default function Sorteio() {
       )
       return
     }
-    // Tema "Mallory claro": a revelação continua no telão (rolos parando e nome
-    // sozinho) antes do card completo; a pausa conta a partir dali.
-    const extraTelao = evento.tema_telao === 'mallory_claro' ? duracaoRevelacaoClaro() : 0
+    // A revelação continua no telão (rolos parando e nome sozinho, nos dois
+    // temas) antes do anúncio completo; a pausa conta a partir dali.
+    const extraTelao = duracaoRevelacaoClaro()
     const espera = resultado !== null && !imediatoRef.current ? pausaS * 1000 + extraTelao : 0
     setProximoEm(Date.now() + espera)
     const id = window.setTimeout(() => {
@@ -342,7 +342,6 @@ export default function Sorteio() {
     proximo?.unidade.id,
     pausaS,
     modoBlocos,
-    evento.tema_telao,
   ])
 
   // Contagem regressiva na tela.

@@ -1,12 +1,12 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePosicaoCarrossel } from '../carrossel'
 import AnuncioGanhador, { AVISO_IMAGEM_ILUSTRATIVA, FundoFestivo } from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
-import { audioLiberado, liberarAudio, somRufar, somVitoria } from '../som'
+import { audioLiberado, liberarAudio, somRufar } from '../som'
 import type { TelaoEstado } from '../types'
-import TelaoClaro from './TelaoClaro'
+import TelaoClaro, { gradeResumo, Rolos, useFaseRevelacao, type FaseRevelacao } from './TelaoClaro'
 import { msRestantes, useTelao } from '../useTelao'
 
 export default function Telao() {
@@ -15,9 +15,15 @@ export default function Telao() {
   const [reduzirLocal, setReduzirLocal] = useState(false)
   const [somPronto, setSomPronto] = useState(false)
   const [controlesVisiveis, setControlesVisiveis] = useState(true)
+  // Fase da revelação no Clássico: o fundo festivo e o cabeçalho flutuante só
+  // entram com o anúncio completo (antes disso a tela é a dos rolos).
+  const [faseResultado, setFaseResultado] = useState<FaseRevelacao>('completo')
 
   const reduzir = reduzirLocal || estado?.evento.reduzir_animacoes === true
   const somAtivo = somPronto && estado?.evento.som_ativado === true
+  // Posição do carrossel calculada AQUI pelo relógio (o slide avança sem nova
+  // mensagem do servidor): o fundo festivo some quando chega ao resumo.
+  const { posicao: posicaoCarrossel } = usePosicaoCarrossel(estado?.carrossel, estado?.servidor_agora)
 
   // Aplica as cores do evento como variaveis CSS.
   useEffect(() => {
@@ -85,19 +91,16 @@ export default function Telao() {
 
   // Anúncio do ganhador (resultado e carrossel, menos o slide-resumo).
   const festivo =
-    estado.estado === 'resultado' ||
-    (estado.estado === 'carrossel_ganhadores' && (estado.carrossel?.posicao ?? 0) < (estado.carrossel?.total ?? 0))
+    (estado.estado === 'resultado' && faseResultado === 'completo') ||
+    (estado.estado === 'carrossel_ganhadores' && posicaoCarrossel < (estado.carrossel?.total ?? 0))
 
   return (
-    <div className="telao relative flex h-full min-h-full flex-col overflow-hidden">
+    <div
+      className="telao relative flex h-full min-h-full flex-col overflow-hidden"
+      // Unidade proporcional à tela (mesma do tema claro), usada pelos rolos de número.
+      style={{ '--u': 'min(0.05vw, 0.08889vh)' } as React.CSSProperties}
+    >
       {festivo && <FundoFestivo reduzir={reduzir} />}
-      <Confete
-        ativo={estado.estado === 'resultado'}
-        reduzido={reduzir}
-        cores={[estado.evento.cor_primaria, estado.evento.cor_texto, estado.evento.cor_destaque]}
-        duracaoMs={2800}
-        quantidade={45}
-      />
 
       {/* ---------------------------------------------------- cabeçalho */}
       {/* No anúncio do ganhador o cabeçalho flutua, para o anúncio usar a tela toda. */}
@@ -150,7 +153,7 @@ export default function Telao() {
           <Sorteando estado={estado} reduzir={reduzir} somAtivo={somAtivo} />
         )}
         {estado.estado === 'resultado' && (
-          <Resultado estado={estado} reduzir={reduzir} somAtivo={somAtivo} />
+          <Resultado estado={estado} reduzir={reduzir} somAtivo={somAtivo} aoMudarFase={setFaseResultado} />
         )}
         {estado.estado === 'encerramento' && <Encerramento estado={estado} />}
         {estado.estado === 'carrossel_ganhadores' && <Carrossel estado={estado} reduzir={reduzir} />}
@@ -262,6 +265,14 @@ function ApresentacaoPremio({ estado }: { estado: TelaoEstado }) {
   )
 }
 
+// Rolos do Clássico: cores do evento (fundo, dourado da cor primária).
+const CORES_ROLO_CLASSICO = {
+  fundo: 'var(--cor-fundo)',
+  borda: 'var(--cor-primaria)',
+  digito: 'var(--cor-primaria)',
+}
+
+/** Rolos de número girando enquanto o servidor revela (como no tema claro). */
 function Sorteando({
   estado,
   reduzir,
@@ -271,11 +282,8 @@ function Sorteando({
   reduzir: boolean
   somAtivo: boolean
 }) {
-  const nomes = estado.nomes_animacao
+  const digitos = Math.min(9, Math.max(1, estado.digitos_animacao ?? 4))
   const duracao = useMemo(() => msRestantes(estado), [estado])
-  const [indice, setIndice] = useState(0)
-  const inicioRef = useRef(performance.now())
-  const ultimoRef = useRef(0)
 
   // O rufar e preso ao horario de revelacao: novas mensagens do servidor durante
   // a mesma animacao nao o reiniciam; sair da tela antes do fim o interrompe.
@@ -286,30 +294,23 @@ function Sorteando({
     return somRufar(duracaoRef.current)
   }, [somAtivo, estado.revelar_em])
 
-  useEffect(() => {
-    if (nomes.length === 0) return
-    if (reduzir) {
-      // Sem animação: apenas um indicador textual de progresso.
-      return
-    }
-    inicioRef.current = performance.now()
-    let quadro = 0
+  return <PainelRolos estado={estado} valor={null} digitos={digitos} reduzir={reduzir} />
+}
 
-    const girar = (agora: number) => {
-      const progresso = Math.min(1, (agora - inicioRef.current) / Math.max(400, duracao))
-      // Desacelera suavemente: 55ms no início, ~420ms no fim.
-      const intervalo = 55 + Math.pow(progresso, 3) * 380
-      if (agora - ultimoRef.current >= intervalo) {
-        ultimoRef.current = agora
-        setIndice((i) => (i + 1 + Math.floor(Math.random() * 3)) % nomes.length)
-      }
-      if (progresso < 1) quadro = requestAnimationFrame(girar)
-    }
-
-    quadro = requestAnimationFrame(girar)
-    return () => cancelAnimationFrame(quadro)
-  }, [nomes, duracao, reduzir])
-
+/** Cartão do sorteio do Clássico: prêmio em cima, rolos, "Quem será?" embaixo. */
+function PainelRolos({
+  estado,
+  valor,
+  digitos,
+  reduzir,
+  atrasoMs = 0,
+}: {
+  estado: TelaoEstado
+  valor: string | null
+  digitos: number
+  reduzir: boolean
+  atrasoMs?: number
+}) {
   return (
     <div className="w-full max-w-5xl text-center">
       {estado.premio && (
@@ -320,63 +321,84 @@ function Sorteando({
         </p>
       )}
 
-      <div className="rolo-nomes flex h-44 items-center justify-center overflow-hidden rounded-lg border-2 borda-ouro px-6 sm:h-60">
-        {reduzir ? (
+      <div className="flex min-h-44 items-center justify-center rounded-lg border-2 borda-ouro px-6 py-8 sm:min-h-60">
+        {reduzir && valor === null ? (
           <p className="text-3xl font-bold opacity-80 sm:text-5xl">Sorteando...</p>
         ) : (
-          <p
-            key={indice}
-            className="animate-sobe-suave text-4xl font-bold leading-tight sm:text-6xl lg:text-7xl"
-          >
-            {nomes[indice] ?? '...'}
-          </p>
+          <div style={{ marginTop: 'calc(-22 * var(--u))' }}>
+            <Rolos valor={valor} digitos={digitos} atrasoMs={atrasoMs} cores={CORES_ROLO_CLASSICO} />
+          </div>
         )}
       </div>
 
       <p className="mt-8 text-lg uppercase tracking-[0.15em] opacity-60 sm:text-2xl">
-        Quem será?
+        {valor === null ? 'Quem será?' : 'Número sorteado'}
       </p>
     </div>
   )
 }
 
+/** Revelação: rolos param no número, nome sozinho e então o anúncio completo. */
 function Resultado({
   estado,
   reduzir,
   somAtivo,
+  aoMudarFase,
 }: {
   estado: TelaoEstado
   reduzir: boolean
   somAtivo: boolean
+  aoMudarFase: (fase: FaseRevelacao) => void
 }) {
-  const tocado = useRef(false)
-  useEffect(() => {
-    if (somAtivo && !tocado.current) {
-      tocado.current = true
-      somVitoria()
-    }
-  }, [somAtivo])
-
+  const { fase, numero, digitos, atrasoMs } = useFaseRevelacao(estado, reduzir, somAtivo)
+  useLayoutEffect(() => aoMudarFase(fase), [fase, aoMudarFase])
   const ganhador = estado.ganhador
   if (!ganhador) return null
   const premio = estado.premio
 
+  if (fase === 'parando' && numero) {
+    return <PainelRolos estado={estado} valor={numero} digitos={digitos} reduzir={reduzir} atrasoMs={atrasoMs} />
+  }
+
+  if (fase === 'nome') {
+    return (
+      <div className="w-full max-w-5xl animate-sobe-suave text-center">
+        <p className="text-lg uppercase tracking-[0.2em] opacity-70 sm:text-2xl">Parabéns!</p>
+        <p className="mt-4 break-words text-5xl font-bold leading-tight texto-ouro sm:text-7xl">{ganhador.nome}</p>
+        {numero && (
+          <p className="mt-6 inline-block rounded-full border-2 borda-ouro px-8 py-2 text-3xl font-bold tabular-nums sm:text-5xl">
+            {numero}
+          </p>
+        )}
+      </div>
+    )
+  }
+
   return (
-    <AnuncioGanhador
-      reduzir={reduzir}
-      dados={{
-        nome: ganhador.nome,
-        setor: ganhador.setor,
-        fotoUrl: ganhador.foto_url,
-        numero: ganhador.numero_sorteio,
-        matricula: ganhador.matricula_da_sorte,
-        premioNome: premio?.nome ?? '',
-        premioDescricao: premio?.descricao,
-        premioImagemUrl: premio?.imagem_url ?? null,
-        detalhePremio:
-          premio && premio.unidade_total > 1 ? `Unidade ${premio.unidade_numero} de ${premio.unidade_total}` : null,
-      }}
-    />
+    <>
+      <Confete
+        ativo
+        reduzido={reduzir}
+        cores={[estado.evento.cor_primaria, estado.evento.cor_texto, estado.evento.cor_destaque]}
+        duracaoMs={2800}
+        quantidade={45}
+      />
+      <AnuncioGanhador
+        reduzir={reduzir}
+        dados={{
+          nome: ganhador.nome,
+          setor: ganhador.setor,
+          fotoUrl: ganhador.foto_url,
+          numero: ganhador.numero_sorteio,
+          matricula: ganhador.matricula_da_sorte,
+          premioNome: premio?.nome ?? '',
+          premioDescricao: premio?.descricao,
+          premioImagemUrl: premio?.imagem_url ?? null,
+          detalhePremio:
+            premio && premio.unidade_total > 1 ? `Unidade ${premio.unidade_numero} de ${premio.unidade_total}` : null,
+        }}
+      />
+    </>
   )
 }
 
@@ -389,7 +411,17 @@ function iniciais(nome: string): string {
 }
 
 /** Foto do ganhador ou, sem foto, as iniciais sobre as cores do evento. */
-function FotoGanhador({ url, nome, className }: { url: string | null; nome: string; className: string }) {
+function FotoGanhador({
+  url,
+  nome,
+  className,
+  estilo,
+}: {
+  url: string | null
+  nome: string
+  className: string
+  estilo?: React.CSSProperties
+}) {
   const [falhou, setFalhou] = useState(false)
   if (url && !falhou) {
     return (
@@ -398,6 +430,7 @@ function FotoGanhador({ url, nome, className }: { url: string | null; nome: stri
         alt=""
         onError={() => setFalhou(true)}
         className={`rounded-full border-2 borda-ouro object-cover ${className}`}
+        style={estilo}
       />
     )
   }
@@ -405,7 +438,7 @@ function FotoGanhador({ url, nome, className }: { url: string | null; nome: stri
     <div
       aria-hidden="true"
       className={`flex items-center justify-center rounded-full border-2 borda-ouro font-bold texto-ouro ${className}`}
-      style={{ background: 'rgba(255, 255, 255, 0.08)' }}
+      style={{ background: 'rgba(255, 255, 255, 0.08)', ...estilo }}
     >
       <span style={{ fontSize: '38%' }}>{iniciais(nome)}</span>
     </div>
@@ -477,38 +510,48 @@ function ResumoCarrossel({
   reduzir: boolean
 }) {
   const slides = estado.carrossel?.slides ?? []
-  const compacto = slides.length > 12
+  // Mais ganhadores = mais colunas e pílulas menores, tudo proporcional à tela
+  // (--u): cabe inteiro no telão, com o nome em até duas linhas (sem cortar).
+  const { colunas, escala, largura } = gradeResumo(slides.length)
+  const u = (n: number) => `calc(${n * escala} * var(--u))`
   return (
-    <div className={`w-full max-w-7xl ${reduzir ? '' : 'animate-sobe-suave'}`}>
-      <p className="text-center text-lg font-semibold uppercase tracking-[0.15em] opacity-70 sm:text-2xl">
+    <div className={`flex w-full flex-col items-center ${reduzir ? '' : 'animate-sobe-suave'}`}>
+      <p className="text-center font-semibold uppercase tracking-[0.15em] opacity-70" style={{ fontSize: 'calc(30 * var(--u))' }}>
         Bloco {numero}
       </p>
-      <h2 className="mt-2 text-center font-exibicao text-4xl font-bold texto-ouro sm:text-6xl">
+      <h2 className="text-center font-exibicao font-bold texto-ouro" style={{ fontSize: 'calc(76 * var(--u))', lineHeight: 1.1 }}>
         Parabéns aos ganhadores!
       </h2>
       <ul
-        className={`mt-8 grid gap-3 ${
-          compacto ? 'grid-cols-2 sm:grid-cols-3 lg:grid-cols-5' : 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3'
-        }`}
+        className="grid"
+        style={{
+          width: `min(100%, calc(${largura} * var(--u)))`,
+          marginTop: u(40),
+          gap: u(14),
+          gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))`,
+        }}
       >
         {slides.map((s, i) => (
           <li
             key={`${s.premio_nome}-${s.unidade_numero}-${i}`}
-            className={`flex items-center gap-3 rounded-lg border borda-ouro bg-white/5 p-2.5 ${
-              reduzir ? '' : 'animate-slide-entra'
-            }`}
-            style={reduzir ? undefined : { animationDelay: `${Math.min(i, 24) * 60}ms` }}
+            className={`flex items-center rounded-lg border borda-ouro bg-white/5 ${reduzir ? '' : 'animate-slide-entra'}`}
+            style={{
+              gap: u(14),
+              padding: `${u(12)} ${u(16)}`,
+              ...(reduzir ? {} : { animationDelay: `${Math.min(i, 24) * 60}ms` }),
+            }}
           >
             <FotoGanhador
               url={s.ganhador_foto_url}
               nome={s.ganhador_nome}
-              className={`shrink-0 border-2 ${compacto ? 'h-12 w-12 text-[3rem]' : 'h-16 w-16 text-[4rem]'}`}
+              className="shrink-0 border-2"
+              estilo={{ width: u(64), height: u(64), fontSize: u(64) }}
             />
             <div className="min-w-0">
-              <p className={`truncate font-bold texto-ouro ${compacto ? 'text-base' : 'text-lg'}`}>
+              <p className="line-clamp-2 break-words font-bold leading-tight texto-ouro" style={{ fontSize: u(24) }}>
                 {s.ganhador_nome}
               </p>
-              <p className={`truncate opacity-80 ${compacto ? 'text-xs' : 'text-sm'}`}>
+              <p className="line-clamp-2 break-words opacity-80" style={{ fontSize: u(17), marginTop: u(2) }}>
                 {s.ganhador_matricula_da_sorte ? (
                   <span className="tabular-nums">Matrícula {s.ganhador_matricula_da_sorte} · </span>
                 ) : (

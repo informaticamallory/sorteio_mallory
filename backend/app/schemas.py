@@ -190,6 +190,11 @@ class EventoConfigIn(BaseModel):
     carrossel_segundos: float | None = Field(default=None, ge=0.5, le=60, multiple_of=0.5)
     # Visual do telao: "classico" (cores do evento) ou "mallory_claro".
     tema_telao: Literal["classico", "mallory_claro"] | None = None
+    # Cores do tema "Mallory claro" (#RRGGBB, conferidas no router).
+    claro_cor_fundo: str | None = None
+    claro_cor_painel: str | None = None
+    claro_cor_destaque: str | None = None
+    claro_cor_texto: str | None = None
 
     @field_validator("autocadastro_inicio", "autocadastro_fim")
     @classmethod
@@ -283,6 +288,10 @@ class EventoOut(ORMModel):
     autocadastro_fim: datetime | None = None
     carrossel_segundos: float = 6
     tema_telao: str = "classico"
+    claro_cor_fundo: str = "#eeeeee"
+    claro_cor_painel: str = "#dddddd"
+    claro_cor_destaque: str = "#ff5d1d"
+    claro_cor_texto: str = "#606060"
     demo: bool
     criado_em: datetime
 

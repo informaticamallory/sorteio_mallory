@@ -75,6 +75,12 @@ def _evento_payload(evento: Event) -> dict:
         "duracao_animacao_ms": evento.duracao_animacao_ms,
         "fuso_horario": evento.fuso_horario,
         "tema_telao": evento.tema_telao or TEMA_CLASSICO,
+        "cores_claro": {
+            "fundo": evento.claro_cor_fundo,
+            "painel": evento.claro_cor_painel,
+            "destaque": evento.claro_cor_destaque,
+            "texto": evento.claro_cor_texto,
+        },
     }
 
 
@@ -168,14 +174,12 @@ def _serializar(db: Session, evento: Event, ds: DisplayState) -> dict:
             }
 
     if ds.estado == EstadoTelao.SORTEANDO.value:
-        if evento.tema_telao == TEMA_CLARO:
-            # Tema claro: os rolos giram numeros aleatorios. O telao recebe so
-            # QUANTOS digitos tem o numero (para montar os rolos); nenhum nome de
-            # elegivel e nenhum digito do ganhador antes da revelacao.
-            participante = db.get(Participant, sorteio.participant_id) if sorteio is not None else None
-            payload["digitos_animacao"] = len(numero_exibido(evento, participante)) if participante else 4
-        else:
-            payload["nomes_animacao"] = list(ds.nomes_animacao or [])
+        # Os dois temas giram rolos de numeros aleatorios. O telao recebe so
+        # QUANTOS digitos tem o numero (para montar os rolos); nenhum nome de
+        # elegivel e nenhum digito do ganhador antes da revelacao.
+        # (nomes_animacao continua no payload, sempre vazio, por compatibilidade.)
+        participante = db.get(Participant, sorteio.participant_id) if sorteio is not None else None
+        payload["digitos_animacao"] = len(numero_exibido(evento, participante)) if participante else 4
 
     if sorteio is not None:
         payload["rodada"] = sorteio.rodada

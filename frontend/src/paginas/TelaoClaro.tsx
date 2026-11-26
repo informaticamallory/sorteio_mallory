@@ -18,21 +18,31 @@ import type { Conexao } from '../useTelao'
  */
 const u = (n: number) => `calc(${n} * var(--u))`
 
-const LARANJA = '#ff5d1d'
-const CINZA = '#dddddd'
-const GRAFITE = '#606060'
+// Cores do tema: variaveis CSS preenchidas com as cores do evento (Configuracao).
+const LARANJA = 'var(--tc-destaque)'
+const CINZA = 'var(--tc-painel)'
+const GRAFITE = 'var(--tc-texto)'
+// Tons derivados (bordas e detalhes), sempre a partir das cores do evento.
+const CINZA_SUAVE = 'color-mix(in srgb, var(--tc-painel) 55%, var(--tc-fundo))'
+const CINZA_BORDA = 'color-mix(in srgb, var(--tc-painel) 80%, var(--tc-texto))'
 
 // Revelação em três tempos: rolos param (um a um), nome sozinho, card completo.
 const PARADA_POR_ROLO_MS = 350
 const POUSO_MS = 700
 const NOME_MS = 1800
 
+/** Cores do tema claro configuradas no evento (ou a paleta Mallory). */
+export const PALETA_MALLORY = { fundo: '#eeeeee', painel: '#dddddd', destaque: '#ff5d1d', texto: '#606060' }
+function coresClaro(estado: TelaoEstado) {
+  return { ...PALETA_MALLORY, ...(estado.evento.cores_claro ?? {}) }
+}
+
 /** Quanto a revelação do tema claro dura depois do horário de revelação. */
 export function duracaoRevelacaoClaro(digitos = 4): number {
   return digitos * PARADA_POR_ROLO_MS + POUSO_MS + NOME_MS
 }
 
-function numeroExibido(numero: number | null | undefined, matricula: string | null | undefined): string | null {
+export function numeroExibido(numero: number | null | undefined, matricula: string | null | undefined): string | null {
   if (matricula) return matricula
   if (numero === null || numero === undefined) return null
   return String(numero).padStart(4, '0')
@@ -66,10 +76,19 @@ export default function TelaoClaro({
   aoTelaCheia: () => void
 }) {
   const mostrarCaixas = estado.estado !== 'aguardando' && estado.estado !== 'encerramento'
+  const cores = coresClaro(estado)
   return (
     <div
       className="telao-claro relative h-full min-h-full w-full overflow-hidden"
-      style={{ '--u': 'min(0.05vw, 0.08889vh)' } as CSSProperties}
+      style={
+        {
+          '--u': 'min(0.05vw, 0.08889vh)',
+          '--tc-fundo': cores.fundo,
+          '--tc-painel': cores.painel,
+          '--tc-destaque': cores.destaque,
+          '--tc-texto': cores.texto,
+        } as CSSProperties
+      }
     >
       {/* ------------------------------------------------ cabeçalho */}
       <div
@@ -77,7 +96,7 @@ export default function TelaoClaro({
         style={{ left: u(88), top: u(88), height: u(46), padding: `0 ${u(30)}`, gap: u(30), background: CINZA }}
       >
         <MarcaMallory />
-        <span style={{ width: 1, height: u(26), background: '#c8c8c8' }} />
+        <span style={{ width: 1, height: u(26), background: CINZA_BORDA }} />
         <span style={{ fontSize: u(10.5), letterSpacing: u(3.2), fontWeight: 500 }}>SORTEIOS INTERNOS</span>
       </div>
       {mostrarCaixas && (
@@ -188,7 +207,7 @@ function Pontos({ animados }: { animados: boolean }) {
           style={{
             width: u(22),
             height: u(22),
-            background: i === 3 ? '#e6e6e6' : CINZA,
+            background: i === 3 ? CINZA_SUAVE : CINZA,
             animation: animados ? `pontos-claro 1.2s ${i * 0.15}s ease-in-out infinite` : undefined,
           }}
         />
@@ -217,7 +236,7 @@ function Cartao({
         ...(larguraMaxima ? { minWidth: u(largura), maxWidth: u(larguraMaxima) } : { width: u(largura) }),
         minHeight: u(282),
         borderRadius: u(24),
-        border: `${u(2.5)} solid ${laranja ? LARANJA : '#d6d6d6'}`,
+        border: `${u(2.5)} solid ${laranja ? LARANJA : CINZA_BORDA}`,
         padding: `${u(36)} ${u(50)}`,
       }}
     >
@@ -323,7 +342,18 @@ function Sorteando({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
  * Rolos de número. `valor` nulo: todos giram. Com valor: cada rolo para no seu
  * dígito, um de cada vez, da esquerda para a direita.
  */
-function Rolos({ valor, digitos, atrasoMs = 0 }: { valor: string | null; digitos: number; atrasoMs?: number }) {
+export function Rolos({
+  valor,
+  digitos,
+  atrasoMs = 0,
+  cores = { fundo: '#ffffff', borda: CINZA, digito: LARANJA },
+}: {
+  valor: string | null
+  digitos: number
+  atrasoMs?: number
+  /** Cores do rolo (o clássico usa as cores do evento). Tamanhos em `--u`. */
+  cores?: { fundo: string; borda: string; digito: string }
+}) {
   const caracteres = valor ? valor.split('') : Array.from({ length: digitos }, () => '')
   const [parados, setParados] = useState(0)
   useEffect(() => {
@@ -352,14 +382,14 @@ function Rolos({ valor, digitos, atrasoMs = 0 }: { valor: string | null; digitos
               width: u(largura),
               height: u(156),
               borderRadius: u(18),
-              background: '#ffffff',
-              border: `${u(2)} solid ${CINZA}`,
+              background: cores.fundo,
+              border: `${u(2)} solid ${cores.borda}`,
             }}
           >
             {parado ? (
               <div
                 className="rolo-pousa flex h-full items-center justify-center"
-                style={{ fontSize: u(116), fontWeight: 800, color: LARANJA, lineHeight: 1 }}
+                style={{ fontSize: u(116), fontWeight: 800, color: cores.digito, lineHeight: 1 }}
               >
                 {c}
               </div>
@@ -369,7 +399,7 @@ function Rolos({ valor, digitos, atrasoMs = 0 }: { valor: string | null; digitos
                   <div
                     key={j}
                     className="flex items-center justify-center"
-                    style={{ height: u(156), fontSize: u(116), fontWeight: 800, color: LARANJA, lineHeight: 1 }}
+                    style={{ height: u(156), fontSize: u(116), fontWeight: 800, color: cores.digito, lineHeight: 1 }}
                   >
                     {d}
                   </div>
@@ -379,7 +409,7 @@ function Rolos({ valor, digitos, atrasoMs = 0 }: { valor: string | null; digitos
             {/* Sombra de cima e de baixo, como numa janela de caça-níquel. */}
             <div
               className="pointer-events-none absolute inset-0"
-              style={{ background: 'linear-gradient(#fff 0%, transparent 26%, transparent 74%, #fff 100%)' }}
+              style={{ background: `linear-gradient(${cores.fundo} 0%, transparent 26%, transparent 74%, ${cores.fundo} 100%)` }}
             />
           </div>
         )
@@ -388,9 +418,15 @@ function Rolos({ valor, digitos, atrasoMs = 0 }: { valor: string | null; digitos
   )
 }
 
-type Fase = 'parando' | 'nome' | 'completo'
+export type FaseRevelacao = 'parando' | 'nome' | 'completo'
 
-function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir: boolean; somAtivo: boolean }) {
+/**
+ * Revelação em três tempos, usada pelos dois temas: os rolos param no número
+ * (um a um), o nome aparece sozinho e então o anúncio completo. A fase vem do
+ * tempo desde a revelação (relógio do servidor): reconectar no meio não repete
+ * tudo. Toca a fanfarra quando o último rolo para.
+ */
+export function useFaseRevelacao(estado: TelaoEstado, reduzir: boolean, somAtivo: boolean) {
   const ganhador = estado.ganhador
   const numero = ganhador ? numeroExibido(ganhador.numero_sorteio, ganhador.matricula_da_sorte) : null
   const digitos = numero?.length ?? 4
@@ -398,10 +434,9 @@ function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
   const fimParada = digitos * PARADA_POR_ROLO_MS + POUSO_MS
   const fimNome = fimParada + NOME_MS
 
-  // Fase calculada pelo tempo desde a revelação: reconectar no meio não repete tudo.
-  const faseInicial: Fase =
+  const faseInicial: FaseRevelacao =
     reduzir || !numero ? 'completo' : decorrido < fimParada ? 'parando' : decorrido < fimNome ? 'nome' : 'completo'
-  const [fase, setFase] = useState<Fase>(faseInicial)
+  const [fase, setFase] = useState<FaseRevelacao>(faseInicial)
   const inicioRef = useRef({ decorrido: Math.max(0, Math.min(decorrido, fimNome)), em: performance.now() })
 
   useEffect(() => {
@@ -412,7 +447,6 @@ function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
     return () => window.clearTimeout(id)
   }, [fase, fimParada, fimNome])
 
-  // Fanfarra quando o último rolo para (ou direto, sem animação).
   const tocado = useRef(false)
   useEffect(() => {
     if (somAtivo && !tocado.current && fase !== 'parando') {
@@ -420,6 +454,13 @@ function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
       somVitoria()
     }
   }, [somAtivo, fase])
+
+  return { fase, numero, digitos, atrasoMs: Math.max(0, inicioRef.current.decorrido) }
+}
+
+function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir: boolean; somAtivo: boolean }) {
+  const ganhador = estado.ganhador
+  const { fase, numero, digitos, atrasoMs } = useFaseRevelacao(estado, reduzir, somAtivo)
 
   if (!ganhador) return null
 
@@ -429,7 +470,7 @@ function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
         <Cartao largura={1090}>
           <Pontos animados />
           <p style={{ marginTop: u(18), fontSize: u(15), letterSpacing: u(4), fontWeight: 500 }}>SORTEANDO O NÚMERO</p>
-          <Rolos valor={numero} digitos={digitos} atrasoMs={Math.max(0, inicioRef.current.decorrido)} />
+          <Rolos valor={numero} digitos={digitos} atrasoMs={atrasoMs} />
         </Cartao>
         <LinhaPremio estado={estado} />
       </div>
@@ -456,7 +497,7 @@ function Resultado({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
   const premio = estado.premio
   return (
     <>
-      <Confete ativo={!reduzir} reduzido={reduzir} cores={[LARANJA, GRAFITE, CINZA, '#ffffff']} duracaoMs={2800} quantidade={45} />
+      <Confete ativo={!reduzir} reduzido={reduzir} cores={[coresClaro(estado).destaque, coresClaro(estado).texto, coresClaro(estado).painel, '#ffffff']} duracaoMs={2800} quantidade={45} />
       <div className={reduzir ? '' : 'animate-entra-vencedor'}>
         <CartaoVencedor
           nome={ganhador.nome}
@@ -515,7 +556,7 @@ function CartaoDividido({
             className="absolute inset-0 h-full w-full text-slate-300"
           />
         </div>
-        <div className="text-center" style={{ borderTop: `1px solid #e6e6e6`, padding: `${u(18)} ${u(20)} ${u(comImagem ? 8 : 26)}` }}>
+        <div className="text-center" style={{ borderTop: `1px solid ${CINZA_SUAVE}`, padding: `${u(18)} ${u(20)} ${u(comImagem ? 8 : 26)}` }}>
           <p className="truncate" style={{ fontSize: u(26) }}>{premioNome}</p>
           {comImagem && <p style={{ fontSize: u(13), fontStyle: 'italic', opacity: 0.6, marginTop: u(4) }}>{AVISO_IMAGEM_ILUSTRATIVA}</p>}
         </div>
@@ -641,12 +682,23 @@ function Carrossel({ estado, reduzir }: { estado: TelaoEstado; reduzir: boolean 
   )
 }
 
+/**
+ * Grade do resumo do carrossel (os dois temas): quanto mais ganhadores, mais
+ * colunas e pílulas menores, para caber inteiro no telão (blocos de até ~90).
+ * `largura` em unidades do modelo (2000 = tela toda).
+ */
+export function gradeResumo(n: number): { colunas: number; escala: number; largura: number } {
+  if (n <= 8) return { colunas: 2, escala: 1, largura: 1100 }
+  if (n <= 15) return { colunas: 3, escala: 0.86, largura: 1500 }
+  if (n <= 28) return { colunas: 4, escala: 0.74, largura: 1760 }
+  if (n <= 45) return { colunas: 5, escala: 0.64, largura: 1840 }
+  if (n <= 66) return { colunas: 6, escala: 0.56, largura: 1860 }
+  return { colunas: 7, escala: 0.5, largura: 1880 }
+}
+
 function ResumoCarrossel({ slides, reduzir }: { slides: SlideCarrossel[]; reduzir: boolean }) {
   // Quanto mais ganhadores, mais colunas e menor a pílula, para caber na tela.
-  const n = slides.length
-  const colunas = n <= 10 ? 2 : n <= 21 ? 3 : n <= 40 ? 4 : 5
-  const escala = n <= 10 ? 1 : n <= 21 ? 0.82 : n <= 40 ? 0.68 : 0.56
-  const largura = colunas === 2 ? 1040 : 1700
+  const { colunas, escala, largura } = gradeResumo(slides.length)
   return (
     <div className={`flex flex-col items-center ${reduzir ? '' : 'animate-sobe-suave'}`} style={{ marginTop: u(60) }}>
       <h2 style={{ fontSize: u(72), fontWeight: 800, color: GRAFITE }}>Parabéns aos vencedores!</h2>
@@ -666,10 +718,10 @@ function ResumoCarrossel({ slides, reduzir }: { slides: SlideCarrossel[]; reduzi
           >
             <FotoPilula url={s.ganhador_foto_url} nome={s.ganhador_nome} tamanho={70 * escala} />
             <div className="min-w-0">
-              <p className="truncate" style={{ color: LARANJA, fontWeight: 800, fontSize: u(26 * escala) }}>
+              <p className="line-clamp-2 break-words" style={{ color: LARANJA, fontWeight: 800, fontSize: u(26 * escala), lineHeight: 1.15 }}>
                 {s.ganhador_nome}
               </p>
-              <p className="truncate" style={{ fontSize: u(24 * escala) }}>
+              <p className="line-clamp-2 break-words" style={{ fontSize: u(22 * escala) }}>
                 {s.ganhador_matricula_da_sorte ? 'Matrícula ' : 'Nº '}
                 <span style={{ fontWeight: 700 }}>{numeroExibido(s.ganhador_numero, s.ganhador_matricula_da_sorte)}</span>
                 {' · '}

@@ -203,6 +203,11 @@ class Event(Base):
     # Visual do telao: "classico" (azul/dourado com as cores do evento) ou
     # "mallory_claro" (cinza e laranja Mallory, fonte Sora, numeros girando).
     tema_telao: Mapped[str] = mapped_column(String(20), default="classico", server_default="classico")
+    # Cores do tema "Mallory claro" (independentes das do classico). Padrao: paleta Mallory.
+    claro_cor_fundo: Mapped[str] = mapped_column(String(20), default="#eeeeee", server_default="#eeeeee")
+    claro_cor_painel: Mapped[str] = mapped_column(String(20), default="#dddddd", server_default="#dddddd")
+    claro_cor_destaque: Mapped[str] = mapped_column(String(20), default="#ff5d1d", server_default="#ff5d1d")
+    claro_cor_texto: Mapped[str] = mapped_column(String(20), default="#606060", server_default="#606060")
 
     # Marca eventos de demonstracao, para que nunca se misturem aos reais.
     demo: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
