@@ -21,8 +21,8 @@ from ..models import AuditLog, BlocoSorteio, DisplayState, EstadoTelao, Event, U
 from .blocos import em_revelacao, ganhadores_do_bloco
 from .erros import RegraDeNegocio
 
-# Tempo minimo de cada ganhador na tela (migracao 0016: era 5 s).
-DURACAO_MINIMA_S = 1
+# Tempo minimo de cada ganhador na tela (0016: 5 -> 1 s; 0017: 1 -> 0,5 s).
+DURACAO_MINIMA_S = 0.5
 # Depois que o telao revela o ultimo sorteio do bloco, o ganhador fica na tela
 # por este tempo antes de o carrossel comecar sozinho.
 PAUSA_APOS_REVELACAO_S = 5

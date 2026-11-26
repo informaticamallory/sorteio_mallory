@@ -28,7 +28,9 @@ export const ABAS: { para: string; rotulo: string; permissao: Permissao; icone: 
   { para: 'sorteio', rotulo: 'Sorteio', permissao: 'controlar_sorteio', icone: 'sorteio' },
   { para: 'credenciamento', rotulo: 'Credenciamento', permissao: 'acompanhar_credenciamento', icone: 'credenciamento' },
   { para: 'entregas', rotulo: 'Entregas', permissao: 'pesquisar_colaboradores', icone: 'entregas', titulo: 'Central de Entregas' },
-  { para: 'blocos', rotulo: 'Blocos', permissao: 'visualizar_blocos', icone: 'blocos', titulo: 'Gerenciamento de Blocos' },
+  // Tela de Blocos só para quem monta os blocos. O Sorteador escolhe e inicia o
+  // bloco na própria tela de Sorteio (a leitura dos blocos continua liberada a ele).
+  { para: 'blocos', rotulo: 'Blocos', permissao: 'configurar_blocos', icone: 'blocos', titulo: 'Gerenciamento de Blocos' },
   { para: 'participantes', rotulo: 'Participantes', permissao: 'gerenciar_participantes', icone: 'participantes' },
   { para: 'premios', rotulo: 'Prêmios', permissao: 'cadastrar_premios', icone: 'premios' },
   { para: 'regras', rotulo: 'Regras', permissao: 'definir_regras', icone: 'regras' },

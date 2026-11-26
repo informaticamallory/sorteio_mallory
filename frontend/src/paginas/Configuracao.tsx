@@ -268,20 +268,20 @@ export default function Configuracao() {
           </div>
           <div>
             <label className="rotulo" htmlFor="cfg-carrossel">
-              Tempo de cada ganhador no carrossel: {form.carrossel_segundos}s
+              Tempo de cada ganhador no carrossel: {String(form.carrossel_segundos).replace('.', ',')}s
             </label>
             <input
               id="cfg-carrossel"
               type="range"
-              min={1}
+              min={0.5}
               max={30}
-              step={1}
+              step={0.5}
               value={form.carrossel_segundos}
               onChange={(e) => atualizar({ carrossel_segundos: Number(e.target.value) })}
               className="w-full accent-marca-800"
             />
             <p className="mt-1 text-xs text-slate-500">
-              Mínimo de 1 segundo. Vale a partir da próxima apresentação.
+              Mínimo de 0,5 segundo. Vale a partir da próxima apresentação.
             </p>
           </div>
           <div>

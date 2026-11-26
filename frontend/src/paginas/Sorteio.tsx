@@ -25,12 +25,13 @@ const ATUALIZAR_BLOCOS_MS = 10_000
 // Sorteio automático: quanto tempo o ganhador fica na tela antes do próximo.
 const CHAVE_PAUSA = 'sorteio.pausa_automatico'
 const PAUSA_PADRAO_S = 8
-const PAUSA_MIN_S = 1
+const PAUSA_MIN_S = 0.5
 const PAUSA_MAX_S = 60
 
+/** Entre 0,5 e 60 s, em passos de 0,5 s. */
 function limitarPausa(valor: number): number {
   if (!Number.isFinite(valor)) return PAUSA_PADRAO_S
-  return Math.min(PAUSA_MAX_S, Math.max(PAUSA_MIN_S, Math.round(valor)))
+  return Math.min(PAUSA_MAX_S, Math.max(PAUSA_MIN_S, Math.round(valor * 2) / 2))
 }
 
 function lerPausa(): number {
@@ -76,6 +77,7 @@ export default function Sorteio() {
   // um sorteio normal no servidor (aleatório, auditado, um por vez).
   const [automatico, setAutomatico] = useState(false)
   const [pausaS, setPausaS] = useState<number>(lerPausa)
+  const [textoPausa, setTextoPausa] = useState(() => String(pausaS))
   const [proximoEm, setProximoEm] = useState<number | null>(null)
   const [agora, setAgora] = useState(() => Date.now())
   const [avisoAuto, setAvisoAuto] = useState('')
@@ -384,11 +386,22 @@ export default function Sorteio() {
       <div className="grid gap-4 lg:grid-cols-[1fr_380px]">
         {/* ------------------------------------------------ painel de controle */}
         <section className="space-y-4">
+          {!modoBlocos && blocos && pode('configurar_blocos') && (
+            <p className="rounded-lg border border-slate-200 bg-white px-4 py-3 text-sm text-slate-600">
+              Este evento ainda não tem blocos, então o sorteio é prêmio a prêmio. Para escolher e iniciar
+              por bloco aqui, crie os blocos em{' '}
+              <Link to="../blocos" className="font-semibold text-marca-700 underline">
+                Blocos
+              </Link>
+              .
+            </p>
+          )}
           {modoBlocos && blocos && (
             <PainelBloco
               blocos={blocos}
               ativo={blocoAtivo}
               ocupado={operandoBloco || sorteando}
+              configura={pode('configurar_blocos')}
               aoOperar={(bloco, acao) =>
                 acao === 'finalizar' ? setFinalizando(bloco) : void operarBloco(bloco, acao)
               }
@@ -578,9 +591,17 @@ export default function Sorteio() {
                       type="number"
                       min={PAUSA_MIN_S}
                       max={PAUSA_MAX_S}
-                      className="campo h-9 w-16 px-2 text-center"
-                      value={pausaS}
-                      onChange={(e) => alterarPausa(Number(e.target.value))}
+                      step={0.5}
+                      inputMode="decimal"
+                      className="campo h-9 w-20 px-2 text-center"
+                      value={textoPausa}
+                      onChange={(e) => {
+                        // Aceita a digitação livre ("0", "0.", "0,5") e só aplica números válidos.
+                        setTextoPausa(e.target.value)
+                        const valor = Number(e.target.value.replace(',', '.'))
+                        if (e.target.value !== '' && Number.isFinite(valor) && valor >= PAUSA_MIN_S) alterarPausa(valor)
+                      }}
+                      onBlur={() => setTextoPausa(String(pausaS))}
                       aria-label="Segundos com o ganhador na tela antes do próximo sorteio"
                     />
                     s
@@ -985,11 +1006,14 @@ function PainelBloco({
   blocos,
   ativo,
   ocupado,
+  configura,
   aoOperar,
 }: {
   blocos: BlocosResumo
   ativo: Bloco | null
   ocupado: boolean
+  /** Pode abrir a tela de Blocos (o Sorteador não pode). */
+  configura: boolean
   aoOperar: (bloco: Bloco, acao: 'iniciar' | 'pausar' | 'finalizar') => void
 }) {
   if (ativo) {
@@ -1051,11 +1075,15 @@ function PainelBloco({
         <p className="mt-2 text-sm text-slate-600">
           Não há blocos para iniciar.{' '}
           {blocos.unidades_remanescentes > 0
-            ? `Há ${blocos.unidades_remanescentes} prêmio(s) remanescente(s): crie um bloco com eles na aba Blocos.`
+            ? `Há ${blocos.unidades_remanescentes} prêmio(s) remanescente(s): ${
+                configura ? 'crie um bloco com eles na aba Blocos.' : 'peça ao organizador para criar um bloco com eles.'
+              }`
             : 'Todos os blocos foram finalizados.'}{' '}
-          <Link to="../blocos" className="font-semibold underline">
-            Abrir Blocos
-          </Link>
+          {configura && (
+            <Link to="../blocos" className="font-semibold underline">
+              Abrir Blocos
+            </Link>
+          )}
         </p>
       ) : (
         <ul className="mt-3 grid gap-2 sm:grid-cols-2">

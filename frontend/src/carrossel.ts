@@ -34,7 +34,8 @@ export function usePosicaoCarrossel(
   const rodando = !!carrossel && !carrossel.pausado && !!carrossel.rodando_desde
   useEffect(() => {
     if (!rodando) return
-    const id = window.setInterval(() => setTique((t) => t + 1), 200)
+    // 100 ms: com slides de 0,5 s a troca não atrasa perceptivelmente.
+    const id = window.setInterval(() => setTique((t) => t + 1), 100)
     return () => window.clearInterval(id)
   }, [rodando])
 
@@ -43,7 +44,7 @@ export function usePosicaoCarrossel(
   if (!rodando || !carrossel.rodando_desde) {
     return { posicao: Math.min(Math.max(carrossel.indice, 0), total), progresso: 0 }
   }
-  const duracaoMs = Math.max(1, carrossel.duracao_s) * 1000
+  const duracaoMs = Math.max(0.5, carrossel.duracao_s) * 1000
   const agoraServidor = Date.now() - diferenca
   const decorrido = Math.max(0, agoraServidor - instante(carrossel.rodando_desde))
   const posicao = Math.min(total, carrossel.indice + Math.floor(decorrido / duracaoMs))

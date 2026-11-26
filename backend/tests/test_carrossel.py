@@ -127,23 +127,24 @@ def test_fim_de_bloco_durante_a_animacao_nao_corta_a_revelacao(cliente, auth):
 
 
 # ------------------------------------------------------------------ tempo e controles
-def test_cada_ganhador_fica_pelo_menos_1_segundo(cliente, auth):
+def test_cada_ganhador_fica_pelo_menos_meio_segundo(cliente, auth):
     event_id, _p, _u = montar_evento(participantes=1)
-    for segundos in (0, -1, 61):
+    for segundos in (0, 0.4, -1, 61, 0.7):
         resposta = cliente.patch(_api(event_id, ""), json={"carrossel_segundos": segundos}, headers=auth)
-        assert resposta.status_code == 422
-    assert cliente.patch(_api(event_id, ""), json={"carrossel_segundos": 1}, headers=auth).json()["carrossel_segundos"] == 1
-    assert cliente.patch(_api(event_id, ""), json={"carrossel_segundos": 9}, headers=auth).json()["carrossel_segundos"] == 9
+        assert resposta.status_code == 422, segundos
+    for segundos in (0.5, 1, 1.5, 9):
+        resposta = cliente.patch(_api(event_id, ""), json={"carrossel_segundos": segundos}, headers=auth)
+        assert resposta.json()["carrossel_segundos"] == segundos
 
-    # Com 1 s, o carrossel avanca a cada segundo.
+    # Com 0,5 s, o carrossel avanca a cada meio segundo.
     with session_scope() as db:
-        ds = DisplayState(event_id=999, carrossel_indice=0, carrossel_duracao_s=1, carrossel_desde=utcnow() - timedelta(seconds=0.9))
+        ds = DisplayState(event_id=999, carrossel_indice=0, carrossel_duracao_s=0.5, carrossel_desde=utcnow() - timedelta(seconds=0.4))
         assert carrossel.posicao(ds, total=10) == 0
         ds.carrossel_desde = utcnow() - timedelta(seconds=1.1)
-        assert carrossel.posicao(ds, total=10) == 1
-        # Mesmo que o banco tenha um valor menor (manipulado), o servidor usa 1 s.
+        assert carrossel.posicao(ds, total=10) == 2
+        # Mesmo que o banco tenha um valor menor (manipulado), o servidor usa 0,5 s.
         ds.carrossel_duracao_s = 0
-        ds.carrossel_desde = utcnow() - timedelta(seconds=0.5)
+        ds.carrossel_desde = utcnow() - timedelta(seconds=0.3)
         assert carrossel.posicao(ds, total=10) == 0
         db.rollback()
 

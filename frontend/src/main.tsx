@@ -122,7 +122,7 @@ function App() {
           element={<Protegida permissao="consultar_relatorios"><VisaoGeral /></Protegida>}
         />
         <Route path="sorteio" element={<Protegida permissao="controlar_sorteio"><Sorteio /></Protegida>} />
-        <Route path="blocos" element={<Protegida permissao="visualizar_blocos"><Blocos /></Protegida>} />
+        <Route path="blocos" element={<Protegida permissao="configurar_blocos"><Blocos /></Protegida>} />
         <Route path="entregas" element={<Protegida permissao="pesquisar_colaboradores"><Entregas /></Protegida>} />
         <Route
           path="credenciamento"

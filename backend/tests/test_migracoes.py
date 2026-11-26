@@ -278,6 +278,38 @@ def test_ida_e_volta_preserva_dados_e_o_indice_parcial(tmp_path):
         con.close()
 
 
+def test_0017_carrossel_aceita_meio_segundo_e_mantem_os_valores(tmp_path):
+    banco = tmp_path / "carrossel.db"
+    _criar_banco_v1(banco)
+    _popular_v1(banco)
+    command.upgrade(_config(_url(banco)), "0016")
+    con = sqlite3.connect(banco)
+    con.execute("UPDATE events SET carrossel_segundos = 3")
+    con.commit()
+    con.close()
+
+    command.upgrade(_config(_url(banco)), "0017")
+    con = sqlite3.connect(banco)
+    try:
+        assert con.execute("SELECT carrossel_segundos FROM events").fetchall() == [(3.0,)]
+        con.execute("UPDATE events SET carrossel_segundos = 0.5")
+        with pytest.raises(sqlite3.IntegrityError):
+            con.execute("UPDATE events SET carrossel_segundos = 0.4")
+        con.commit()
+    finally:
+        con.close()
+
+    # Na volta, 0,5 vira o minimo antigo (1 s).
+    command.downgrade(_config(_url(banco)), "0016")
+    con = sqlite3.connect(banco)
+    try:
+        assert con.execute("SELECT carrossel_segundos FROM events").fetchall() == [(1,)]
+    finally:
+        con.close()
+    command.upgrade(_config(_url(banco)), "head")
+    assert _divergencias(banco) == []
+
+
 def test_fase2_evento_existente_recebe_capacidade_25_e_indice_de_bloco_ativo(tmp_path):
     banco = tmp_path / "fase2.db"
     _criar_banco_v1(banco)

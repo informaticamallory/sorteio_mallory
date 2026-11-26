@@ -184,8 +184,8 @@ class EventoConfigIn(BaseModel):
     # Periodo do cadastro pelo QR Code. Enviar null remove o limite.
     autocadastro_inicio: datetime | None = None
     autocadastro_fim: datetime | None = None
-    # Carrossel: cada ganhador fica no telao por pelo menos 5 segundos.
-    carrossel_segundos: int | None = Field(default=None, ge=1, le=60)
+    # Carrossel: cada ganhador fica no telao por pelo menos 0,5 s (passos de 0,5 s).
+    carrossel_segundos: float | None = Field(default=None, ge=0.5, le=60, multiple_of=0.5)
 
     @field_validator("autocadastro_inicio", "autocadastro_fim")
     @classmethod
@@ -277,7 +277,7 @@ class EventoOut(ORMModel):
     autocadastro_confirma_presenca: bool = True
     autocadastro_inicio: datetime | None = None
     autocadastro_fim: datetime | None = None
-    carrossel_segundos: int = 6
+    carrossel_segundos: float = 6
     demo: bool
     criado_em: datetime
 

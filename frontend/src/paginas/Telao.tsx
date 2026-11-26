@@ -399,10 +399,13 @@ function Carrossel({ estado, reduzir }: { estado: TelaoEstado; reduzir: boolean 
   }
 
   const slide = dados.slides[posicao]
+  // Abaixo de 1 s por ganhador, a entrada animada (0,45 s) comeria o tempo do
+  // slide: a troca passa a ser direta.
+  const rapido = dados.duracao_s < 1
   return (
     <AnuncioGanhador
       key={posicao}
-      reduzir={reduzir}
+      reduzir={reduzir || rapido}
       subtitulo={`DO BLOCO ${numero}`}
       dados={{
         nome: slide.ganhador_nome,

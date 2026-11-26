@@ -8,6 +8,7 @@ from sqlalchemy import (
     Boolean,
     CheckConstraint,
     DateTime,
+    Float,
     ForeignKey,
     Index,
     Integer,
@@ -139,7 +140,7 @@ class Event(Base):
     __tablename__ = "events"
     __table_args__ = (
         CheckConstraint("capacidade_bloco_padrao >= 1", name="ck_events_capacidade_bloco_positiva"),
-        CheckConstraint("carrossel_segundos >= 1", name="ck_events_carrossel_minimo"),
+        CheckConstraint("carrossel_segundos >= 0.5", name="ck_events_carrossel_minimo"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -177,8 +178,8 @@ class Event(Base):
     autocadastro_confirma_presenca: Mapped[bool] = mapped_column(
         Boolean, default=True, server_default="1"
     )
-    # Tempo de cada ganhador no carrossel do telao. Nunca menos de 5 s.
-    carrossel_segundos: Mapped[int] = mapped_column(Integer, default=6, server_default="6")
+    # Tempo de cada ganhador no carrossel do telao (s). Minimo 0,5 s (migracao 0017).
+    carrossel_segundos: Mapped[float] = mapped_column(Float, default=6, server_default="6")
 
     telao_token: Mapped[str] = mapped_column(String(64), unique=True, index=True)
 
@@ -563,7 +564,7 @@ class DisplayState(Base):
     )
     carrossel_indice: Mapped[int] = mapped_column(Integer, default=0, server_default="0")
     carrossel_desde: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
-    carrossel_duracao_s: Mapped[int] = mapped_column(Integer, default=6, server_default="6")
+    carrossel_duracao_s: Mapped[float] = mapped_column(Float, default=6, server_default="6")
     versao: Mapped[int] = mapped_column(Integer, default=0)
     atualizado_em: Mapped[datetime] = mapped_column(DateTime, default=utcnow, onupdate=utcnow)
 
