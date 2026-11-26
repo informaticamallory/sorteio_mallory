@@ -838,6 +838,7 @@ function ListaPremiados({
   const contagem = dados?.contagem
   // O período vale sobre a data da entrega na aba "Entregues" e do sorteio nas demais.
   const rotuloData = situacao === 'entregues' ? 'Data da entrega' : 'Data do sorteio'
+  const quando = situacao === 'entregues' ? 'Entrega' : 'Sorteio'
 
   return (
     <section className="rounded-xl border border-borda bg-white p-4 shadow-suave sm:p-5">
@@ -874,18 +875,25 @@ function ListaPremiados({
       </div>
 
       <div className="mt-3 flex flex-wrap items-center gap-2">
-        <FiltroChip rotulo="Bloco" valor={blocoId} aoMudar={setBlocoId} opcoes={opcoes?.blocos ?? []} />
-        <FiltroChip rotulo="Prêmio" valor={premioId} aoMudar={setPremioId} opcoes={opcoes?.premios ?? []} />
-        <FiltroChip
-          rotulo={rotuloData}
-          valor={periodo}
-          aoMudar={mudarPeriodo}
-          opcoes={[
-            { id: 'hoje', nome: `${rotuloData}: hoje` },
-            { id: 'data', nome: `${rotuloData}: dia` },
-            { id: 'intervalo', nome: `${rotuloData}: intervalo` },
-          ]}
-        />
+        {/* Celular: chips lado a lado em colunas iguais (2x2 quando há Operador). */}
+        <div className={`grid w-full gap-2 sm:flex sm:w-auto sm:flex-wrap ${comOperador ? 'grid-cols-2' : 'grid-cols-3'}`}>
+          <FiltroChip rotulo="Bloco" valor={blocoId} aoMudar={setBlocoId} opcoes={opcoes?.blocos ?? []} />
+          <FiltroChip rotulo="Prêmio" valor={premioId} aoMudar={setPremioId} opcoes={opcoes?.premios ?? []} />
+          <FiltroChip
+            rotulo="Data"
+            descricao={rotuloData}
+            valor={periodo}
+            aoMudar={mudarPeriodo}
+            opcoes={[
+              { id: 'hoje', nome: `${quando}: hoje` },
+              { id: 'data', nome: `${quando}: dia` },
+              { id: 'intervalo', nome: `${quando}: intervalo` },
+            ]}
+          />
+          {comOperador && (
+            <FiltroChip rotulo="Operador" valor={operadorId} aoMudar={setOperadorId} opcoes={opcoes?.operadores ?? []} />
+          )}
+        </div>
         {(periodo === 'data' || periodo === 'intervalo') && (
           <span className="flex items-center gap-1.5">
             <input
@@ -908,9 +916,6 @@ function ListaPremiados({
               </>
             )}
           </span>
-        )}
-        {comOperador && (
-          <FiltroChip rotulo="Operador" valor={operadorId} aoMudar={setOperadorId} opcoes={opcoes?.operadores ?? []} />
         )}
         {filtrosAtivos > 0 && (
           <button type="button" className="px-1 text-sm font-semibold text-marca-700 hover:underline" onClick={limpar}>
@@ -967,27 +972,33 @@ const COLUNAS = 'lg:grid-cols-[2.75rem_minmax(0,1.6fr)_minmax(0,1.3fr)_5rem_6.5r
 /** Filtro em forma de chip: um select nativo (bom no toque) que fica laranja quando ativo. */
 function FiltroChip({
   rotulo,
+  descricao,
   valor,
   opcoes,
   aoMudar,
 }: {
   rotulo: string
+  /** Nome completo para leitores de tela (o chip mostra o rótulo curto). */
+  descricao?: string
   valor: string
   opcoes: { id: number | string; nome: string }[]
   aoMudar: (valor: string) => void
 }) {
   const ativo = valor !== ''
+  const nome = descricao ?? rotulo
   return (
+    // Celular: ocupa a coluna da grade; computador: do tamanho do texto.
     <span
-      className={`relative inline-flex max-w-full items-center rounded-full border text-sm transition-colors ${
+      className={`relative flex min-w-0 items-center rounded-full border text-sm transition-colors sm:inline-flex sm:max-w-full ${
         ativo ? 'border-marca-300 bg-marca-50 text-marca-800' : 'border-slate-300 bg-white text-slate-700 hover:border-slate-400'
       }`}
+      title={nome}
     >
       <select
-        aria-label={rotulo}
+        aria-label={nome}
         value={valor}
         onChange={(e) => aoMudar(e.target.value)}
-        className={`max-w-[15rem] cursor-pointer appearance-none truncate rounded-full [field-sizing:content] bg-transparent py-1.5 pl-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-marca-400 ${
+        className={`w-full min-w-0 flex-1 cursor-pointer appearance-none truncate rounded-full bg-transparent py-1.5 pl-3 focus:outline-none focus-visible:ring-2 focus-visible:ring-marca-400 sm:w-auto sm:max-w-[15rem] sm:flex-none sm:[field-sizing:content] ${
           ativo ? 'pr-1 font-medium' : 'pr-8'
         }`}
       >
@@ -1001,9 +1012,9 @@ function FiltroChip({
       {ativo ? (
         <button
           type="button"
-          aria-label={`Remover filtro: ${rotulo}`}
+          aria-label={`Remover filtro: ${nome}`}
           onClick={() => aoMudar('')}
-          className="mr-1 rounded-full p-1 text-marca-700 hover:bg-marca-100"
+          className="mr-1 shrink-0 rounded-full p-1 text-marca-700 hover:bg-marca-100"
         >
           <Icone nome="fechar" className="h-3.5 w-3.5" />
         </button>
