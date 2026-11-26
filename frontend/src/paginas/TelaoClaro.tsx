@@ -91,24 +91,11 @@ export default function TelaoClaro({
       }
     >
       {/* ------------------------------------------------ cabeçalho */}
-      {/* Logo sozinha e, separado, o subtítulo do evento (Configuração). */}
-      <div className="absolute z-20 flex items-center" style={{ left: u(70), top: u(42), gap: u(26) }}>
+      {/* Logo no canto e, no centro do alto, o título do evento (Configuração). */}
+      <div className="absolute z-20" style={{ left: u(70), top: u(42) }}>
         <MarcaMallory />
-        <span
-          className="rounded-full"
-          style={{
-            background: CINZA,
-            padding: `${u(9)} ${u(22)}`,
-            fontSize: u(12),
-            letterSpacing: u(3),
-            fontWeight: 600,
-            textTransform: 'uppercase',
-            whiteSpace: 'nowrap',
-          }}
-        >
-          {estado.evento.telao_subtitulo || 'Sorteios internos'}
-        </span>
       </div>
+      <TituloEvento texto={estado.evento.telao_subtitulo || 'Sorteios internos'} />
       {mostrarCaixas && (
         <div className="absolute z-20 flex" style={{ right: u(70), top: u(36), gap: u(16) }}>
           {estado.bloco && <Caixa rotulo="BLOCO" valor={String(estado.bloco.numero).padStart(2, '0')} />}
@@ -150,6 +137,36 @@ export default function TelaoClaro({
         </Controle>
       </div>
     </div>
+  )
+}
+
+/**
+ * Título do evento no alto de todas as telas (ex.: "Sorteio de aniversário de
+ * 52 anos"), centralizado entre a logo e a caixa do bloco. Proporcional à tela;
+ * texto longo usa fonte menor e pode quebrar em duas linhas.
+ */
+function TituloEvento({ texto }: { texto: string }) {
+  const n = texto.length
+  const fonte = n <= 28 ? 44 : n <= 40 ? 38 : n <= 56 ? 32 : 27
+  return (
+    <h1
+      className="absolute z-20 text-center"
+      style={{
+        left: '50%',
+        top: u(30),
+        transform: 'translateX(-50%)',
+        width: u(1240),
+        fontSize: u(fonte),
+        fontWeight: 800,
+        lineHeight: 1.12,
+        letterSpacing: u(fonte * 0.06),
+        textTransform: 'uppercase',
+        color: LARANJA,
+        overflowWrap: 'anywhere',
+      }}
+    >
+      {texto}
+    </h1>
   )
 }
 

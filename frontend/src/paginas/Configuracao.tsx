@@ -213,7 +213,7 @@ export default function Configuracao() {
           </p>
           <div className="mb-4">
             <label className="rotulo" htmlFor="cfg-subtitulo">
-              Texto ao lado da logo
+              Título do telão
             </label>
             <input
               id="cfg-subtitulo"
@@ -224,8 +224,8 @@ export default function Configuracao() {
               onChange={(e) => atualizar({ telao_subtitulo: e.target.value })}
             />
             <p className="mt-1 text-xs text-slate-500">
-              Aparece no alto do telão, em maiúsculas. Ex.: Sorteio de aniversário de 52 anos. Vazio: &quot;Sorteios
-              internos&quot;.
+              Aparece grande, no alto de todas as telas do telão (em maiúsculas). Ex.: Sorteio de aniversário de 52
+              anos. Vazio: &quot;Sorteios internos&quot;.
             </p>
           </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
