@@ -102,8 +102,8 @@ para levar ao servidor. Passo a passo completo: [docs/publicar-easypanel.md](doc
 Credenciais iniciais (definidas em `backend/.env` — **troque antes do evento**):
 
 ```
-usuário: organizador
-senha:   sorteio2026
+usuário: *********
+senha:   *********
 ```
 
 1. **Entrar** e criar um evento.
