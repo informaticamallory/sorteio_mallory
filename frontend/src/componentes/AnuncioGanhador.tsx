@@ -2,7 +2,7 @@ import { useState, type CSSProperties, type ReactNode } from 'react'
 import { ImagemPremio } from './ui'
 
 /** Rótulo da matrícula no telão (modo faixa de matrículas): mais curto, sobra espaço. */
-export const ROTULO_MATRICULA_TELAO = 'R.E'
+export const ROTULO_MATRICULA_TELAO = 'RE'
 
 /** Aviso exibido abaixo das imagens dos prêmios no telão. */
 export const AVISO_IMAGEM_ILUSTRATIVA = 'Imagem meramente ilustrativa'
