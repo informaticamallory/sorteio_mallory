@@ -129,7 +129,7 @@ export default function Credenciamento() {
             type="search"
             autoComplete="off"
             className="campo py-2.5 text-base"
-            placeholder="Nome, matrícula ou pulseira"
+            placeholder="Nome ou matrícula"
             value={texto}
             onChange={(e) => {
               setTexto(e.target.value)

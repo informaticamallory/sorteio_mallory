@@ -184,7 +184,7 @@ export default function Historico() {
               id="busca-historico"
               type="search"
               className="campo pr-9"
-              placeholder="Nome, matrícula, pulseira ou prêmio"
+              placeholder="Nome, matrícula ou prêmio"
               value={texto}
               onChange={(e) => setTexto(e.target.value)}
               autoComplete="off"
