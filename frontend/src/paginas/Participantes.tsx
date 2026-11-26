@@ -394,6 +394,7 @@ export default function Participantes() {
               </p>
             </div>
             <UploadImagem
+              retrato
               url={form.foto_url}
               rotulo="Foto (opcional)"
               aoMudar={(url) => setForm({ ...form, foto_url: url })}

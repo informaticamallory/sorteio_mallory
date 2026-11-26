@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import AjusteFoto from './AjusteFoto'
 
 export interface FotoPronta {
   conteudo: Blob
@@ -62,9 +63,11 @@ export default function CapturaFoto({
   foto: FotoPronta | null
   aoMudar: (foto: FotoPronta | null) => void
 }) {
-  const [modo, setModo] = useState<'escolha' | 'camera'>('escolha')
+  const [modo, setModo] = useState<'escolha' | 'camera' | 'ajuste'>('escolha')
   const [erro, setErro] = useState('')
   const [processando, setProcessando] = useState(false)
+  // Imagem escolhida/capturada, antes do enquadramento (fica para "Ajustar de novo").
+  const [original, setOriginal] = useState<Blob | null>(null)
   const videoRef = useRef<HTMLVideoElement | null>(null)
   const fluxoRef = useRef<MediaStream | null>(null)
   const aoVivo = cameraAoVivoDisponivel()
@@ -123,9 +126,16 @@ export default function CapturaFoto({
     contexto.drawImage(video, 0, 0)
     tela.toBlob((blob) => {
       pararCamera()
-      setModo('escolha')
-      if (blob) void usar(blob)
+      if (blob) ajustar(blob)
+      else setModo('escolha')
     }, 'image/jpeg', 0.9)
+  }
+
+  /** Abre o enquadramento (arrastar, zoom, girar) antes de usar a foto. */
+  function ajustar(origem: Blob) {
+    setErro('')
+    setOriginal(origem)
+    setModo('ajuste')
   }
 
   function aoEscolherArquivo(evento: React.ChangeEvent<HTMLInputElement>) {
@@ -140,13 +150,33 @@ export default function CapturaFoto({
       setErro('A imagem é grande demais (máximo 20 MB).')
       return
     }
-    void usar(arquivo)
+    ajustar(arquivo)
   }
 
   function refazer() {
     if (foto) URL.revokeObjectURL(foto.url)
     aoMudar(null)
+    setOriginal(null)
+    setModo('escolha')
     setErro('')
+  }
+
+  if (modo === 'ajuste' && original) {
+    return (
+      <AjusteFoto
+        portal
+        fonte={original}
+        aoConfirmar={async (recorte) => {
+          await usar(recorte)
+          setModo('escolha')
+        }}
+        aoCancelar={() => {
+          setModo('escolha')
+          if (!foto) setOriginal(null)
+        }}
+        textoCancelar={foto ? 'Cancelar' : 'Escolher outra'}
+      />
+    )
   }
 
   if (foto) {
@@ -157,7 +187,12 @@ export default function CapturaFoto({
           alt="Pré-visualização da sua foto"
           className="mx-auto aspect-square w-48 rounded-full border-4 border-mallory-claro object-cover ring-2 ring-mallory-laranja"
         />
-        <p className="text-sm text-slate-600">Seu rosto está bem visível? Se não, tire outra.</p>
+        <p className="text-sm text-slate-600">Seu rosto está bem visível? Se não, ajuste ou tire outra.</p>
+        {original && (
+          <button type="button" className="rec-btn-neutro w-full" onClick={() => setModo('ajuste')}>
+            Ajustar enquadramento
+          </button>
+        )}
         <button type="button" className="rec-btn-neutro w-full" onClick={refazer}>
           Refazer foto
         </button>

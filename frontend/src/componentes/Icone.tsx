@@ -9,6 +9,10 @@ const CAMINHOS = {
   // Dado: quadrado arredondado com cinco pontos (círculos pequenos, bem visíveis).
   dado: 'M7 4h10a3 3 0 0 1 3 3v10a3 3 0 0 1-3 3H7a3 3 0 0 1-3-3V7a3 3 0 0 1 3-3zM8.5 7.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M15.5 7.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M12 11.25a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M8.5 14.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5M15.5 14.75a.75.75 0 1 0 0 1.5.75.75 0 1 0 0-1.5',
   recepcao: 'M4 13h4l2 3h4l2-3h4M4 13l2-8h12l2 8v6H4z',
+  // Ajuste de foto: girar 90°, centralizar e recortar.
+  girar: 'M20 11a8 8 0 1 0-2.3 5.7M20 5v6h-6',
+  centralizar: 'M4 8V5a1 1 0 0 1 1-1h3M16 4h3a1 1 0 0 1 1 1v3M20 16v3a1 1 0 0 1-1 1h-3M8 20H5a1 1 0 0 1-1-1v-3M9 12a3 3 0 1 0 6 0 3 3 0 1 0-6 0',
+  recortar: 'M7 3v14h14M3 7h14v14',
   credenciamento: 'M8 4h8v3H8zM6 6H5v14h14V6h-1M9 13a3 3 0 1 0 6 0 3 3 0 0 0-6 0M8 19c.6-1.8 2.1-3 4-3s3.4 1.2 4 3',
   blocos: 'M12 3 3 8l9 5 9-5zM3 12.5l9 5 9-5M3 17l9 5 9-5',
   participantes: 'M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7M3 20c.7-3.4 3-5.5 6-5.5s5.3 2.1 6 5.5M16 4.5a3.5 3.5 0 0 1 0 6.5M18 14.8c1.6.7 2.6 2.4 3 5.2',
