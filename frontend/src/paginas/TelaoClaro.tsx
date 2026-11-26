@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
 import { usePosicaoCarrossel } from '../carrossel'
-import { AVISO_IMAGEM_ILUSTRATIVA } from '../componentes/AnuncioGanhador'
+import { AVISO_IMAGEM_ILUSTRATIVA, ROTULO_MATRICULA_TELAO } from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
 import { somRufar, somVitoria } from '../som'
@@ -625,7 +625,7 @@ function CartaoVencedor({
                 className="self-start text-center"
                 style={{ marginTop: u(22), padding: `${u(10)} ${u(44)} ${u(14)}`, borderRadius: u(40), background: LARANJA, color: '#fff' }}
               >
-                <p style={{ fontSize: u(16), fontWeight: 500, opacity: 0.9 }}>{ehMatricula ? 'Matrícula' : 'Nº da sorte'}</p>
+                <p style={{ fontSize: u(16), fontWeight: 500, opacity: 0.9 }}>{ehMatricula ? ROTULO_MATRICULA_TELAO : 'Nº da sorte'}</p>
                 <p style={{ fontSize: u(112), fontWeight: 800, lineHeight: 1, letterSpacing: u(2) }}>{numero}</p>
               </div>
             )}
@@ -722,7 +722,7 @@ function ResumoCarrossel({ slides, reduzir }: { slides: SlideCarrossel[]; reduzi
                 {s.ganhador_nome}
               </p>
               <p className="line-clamp-2 break-words" style={{ fontSize: u(22 * escala) }}>
-                {s.ganhador_matricula_da_sorte ? 'Matrícula ' : 'Nº '}
+                {s.ganhador_matricula_da_sorte ? `${ROTULO_MATRICULA_TELAO} ` : 'Nº '}
                 <span style={{ fontWeight: 700 }}>{numeroExibido(s.ganhador_numero, s.ganhador_matricula_da_sorte)}</span>
                 {' · '}
                 {s.premio_nome}
@@ -793,7 +793,7 @@ function Encerramento({ estado }: { estado: TelaoEstado }) {
                 <p className="truncate" style={{ marginTop: u(12), fontSize: u(18) }}>{item.premio_nome}</p>
                 <p style={{ marginTop: u(6), fontSize: u(22), fontWeight: 800, color: LARANJA, lineHeight: 1.15 }}>{item.ganhador_nome}</p>
                 <p style={{ fontSize: u(18), fontWeight: 600 }} className="tabular-nums">
-                  {item.ganhador_matricula_da_sorte ? 'Matrícula ' : 'Nº '}
+                  {item.ganhador_matricula_da_sorte ? `${ROTULO_MATRICULA_TELAO} ` : 'Nº '}
                   {numeroExibido(item.ganhador_numero, item.ganhador_matricula_da_sorte)}
                 </p>
                 <p className="truncate" style={{ fontSize: u(16), opacity: 0.75 }}>{item.ganhador_setor}</p>

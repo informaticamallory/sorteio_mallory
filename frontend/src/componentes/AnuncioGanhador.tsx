@@ -1,6 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { ImagemPremio } from './ui'
 
+/** Rótulo da matrícula no telão (modo faixa de matrículas): mais curto, sobra espaço. */
+export const ROTULO_MATRICULA_TELAO = 'R.E'
+
 /** Aviso exibido abaixo das imagens dos prêmios no telão. */
 export const AVISO_IMAGEM_ILUSTRATIVA = 'Imagem meramente ilustrativa'
 
@@ -158,7 +161,7 @@ export default function AnuncioGanhador({
             {numero && (
               <>
                 <p className="text-[clamp(1.1rem,1.8vw,2.1rem)] font-medium" style={{ color: 'var(--cor-texto)' }}>
-                  {dados.matricula ? 'Matrícula Sorteada' : 'Número Sorteado'}
+                  {dados.matricula ? `${ROTULO_MATRICULA_TELAO} Sorteado` : 'Número Sorteado'}
                 </p>
                 <div className="mt-[1.2vh] flex items-center gap-[2vw]">
                   <IconePresente className="h-[7vh] w-[7vh] shrink-0" />

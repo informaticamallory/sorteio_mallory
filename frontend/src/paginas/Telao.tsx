@@ -1,7 +1,11 @@
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePosicaoCarrossel } from '../carrossel'
-import AnuncioGanhador, { AVISO_IMAGEM_ILUSTRATIVA, FundoFestivo } from '../componentes/AnuncioGanhador'
+import AnuncioGanhador, {
+  AVISO_IMAGEM_ILUSTRATIVA,
+  FundoFestivo,
+  ROTULO_MATRICULA_TELAO,
+} from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
 import { audioLiberado, liberarAudio, somRufar } from '../som'
@@ -553,7 +557,7 @@ function ResumoCarrossel({
               </p>
               <p className="line-clamp-2 break-words opacity-80" style={{ fontSize: u(17), marginTop: u(2) }}>
                 {s.ganhador_matricula_da_sorte ? (
-                  <span className="tabular-nums">Matrícula {s.ganhador_matricula_da_sorte} · </span>
+                  <span className="tabular-nums">{ROTULO_MATRICULA_TELAO} {s.ganhador_matricula_da_sorte} · </span>
                 ) : (
                   s.ganhador_numero != null && <span className="tabular-nums">Nº {s.ganhador_numero} · </span>
                 )}
@@ -611,7 +615,7 @@ function Encerramento({ estado }: { estado: TelaoEstado }) {
                 </p>
                 {item.ganhador_matricula_da_sorte ? (
                   <p className="break-words text-base font-semibold tabular-nums opacity-90">
-                    Matrícula {item.ganhador_matricula_da_sorte}
+                    {ROTULO_MATRICULA_TELAO} {item.ganhador_matricula_da_sorte}
                   </p>
                 ) : (
                   item.ganhador_numero != null && (
