@@ -6,6 +6,7 @@ import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
 import { audioLiberado, liberarAudio, somRufar, somVitoria } from '../som'
 import type { TelaoEstado } from '../types'
+import TelaoClaro from './TelaoClaro'
 import { msRestantes, useTelao } from '../useTelao'
 
 export default function Telao() {
@@ -62,6 +63,23 @@ export default function Telao() {
           </p>
         </div>
       </div>
+    )
+  }
+
+  // Tema "Mallory claro": outra apresentação, mesmos dados e mesmos controles.
+  if (estado.evento.tema_telao === 'mallory_claro') {
+    return (
+      <TelaoClaro
+        estado={estado}
+        conexao={conexao}
+        reduzir={reduzir}
+        somAtivo={somAtivo}
+        controlesVisiveis={controlesVisiveis}
+        mostrarAtivarSom={estado.evento.som_ativado && !audioLiberado()}
+        aoAtivarSom={() => void liberarAudio().then(setSomPronto)}
+        aoAlternarAnimacoes={() => setReduzirLocal((v) => !v)}
+        aoTelaCheia={() => void alternarTelaCheia()}
+      />
     )
   }
 

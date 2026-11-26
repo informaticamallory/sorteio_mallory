@@ -128,6 +128,8 @@ def atualizar_config(
     user: User = Depends(CONFIGURAR),
 ) -> Event:
     alterado = dados.model_dump(exclude_unset=True)
+    if "tema_telao" in alterado and alterado["tema_telao"] is None:
+        del alterado["tema_telao"]  # tema e obrigatorio: null nao muda nada
     for campo in CAMPOS_COR:
         valor = alterado.get(campo)
         if valor is not None and not COR_RE.match(valor):

@@ -333,6 +333,7 @@ export interface Evento {
   autocadastro_inicio: string | null
   autocadastro_fim: string | null
   carrossel_segundos: number
+  tema_telao?: TemaTelao
   demo: boolean
   criado_em: string
 }
@@ -654,7 +655,10 @@ export interface TelaoEventoPayload {
   reduzir_animacoes: boolean
   duracao_animacao_ms: number
   fuso_horario: string
+  tema_telao?: TemaTelao
 }
+
+export type TemaTelao = 'classico' | 'mallory_claro'
 
 export interface TelaoEstado {
   versao: number
@@ -670,6 +674,8 @@ export interface TelaoEstado {
   bloco?: { numero: number; nome: string } | null
   carrossel?: TelaoCarrossel | null
   carrossel_agendado_em?: string | null
+  /** Tema "Mallory claro", durante o sorteio: quantos rolos de número girar. */
+  digitos_animacao?: number | null
 }
 
 export interface RegistroAuditoria {

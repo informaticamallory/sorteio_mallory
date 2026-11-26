@@ -7,6 +7,9 @@ Logomarca oficial Mallory usada nos cabecalhos pretos (painel, login, portal).
   mallory-branca.png            logo anterior ("Dedicados a ser sua marca favorita"),
                                 horizontal; so aparece se a atual faltar.
   original-laranja.png          arquivo da logo anterior como foi recebido.
+  mallory-laranja.png           so a palavra MALLORY em laranja #ff5d1d, fundo transparente,
+                                para o telao "Mallory claro". Gerada de mallory-presente-branca.png
+                                (recorte da palavra e troca da cor; o desenho nao muda).
 
 Para trocar: substitua mallory-presente-branca.png (ou ajuste a lista FONTES em
 src/componentes/LogoMallory.tsx). Depois gere o build de novo (scripts\iniciar-evento.ps1 ja faz isso).

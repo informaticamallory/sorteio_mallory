@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import re
 from datetime import datetime, timezone
+from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator
 
@@ -187,6 +188,8 @@ class EventoConfigIn(BaseModel):
     autocadastro_fim: datetime | None = None
     # Carrossel: cada ganhador fica no telao por pelo menos 0,5 s (passos de 0,5 s).
     carrossel_segundos: float | None = Field(default=None, ge=0.5, le=60, multiple_of=0.5)
+    # Visual do telao: "classico" (cores do evento) ou "mallory_claro".
+    tema_telao: Literal["classico", "mallory_claro"] | None = None
 
     @field_validator("autocadastro_inicio", "autocadastro_fim")
     @classmethod
@@ -279,6 +282,7 @@ class EventoOut(ORMModel):
     autocadastro_inicio: datetime | None = None
     autocadastro_fim: datetime | None = None
     carrossel_segundos: float = 6
+    tema_telao: str = "classico"
     demo: bool
     criado_em: datetime
 

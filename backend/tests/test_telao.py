@@ -72,6 +72,36 @@ def test_telao_nunca_recebe_matricula_nem_lista_completa(cliente, auth):
     assert set(estado["ganhador"].keys()) == {"nome", "setor", "foto_url", "numero_sorteio"}
 
 
+def test_tema_mallory_claro_gira_numeros_sem_enviar_nomes(cliente, auth):
+    event_id, _, unidades = montar_evento(participantes=10)
+    token = _token_telao(event_id)
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["tema_telao"] == "classico"
+
+    assert cliente.patch(f"/api/events/{event_id}", json={"tema_telao": "neon"}, headers=auth).status_code == 422
+    resposta = cliente.patch(f"/api/events/{event_id}", json={"tema_telao": "mallory_claro"}, headers=auth)
+    assert resposta.status_code == 200 and resposta.json()["tema_telao"] == "mallory_claro"
+    # null nao apaga o tema (a coluna e obrigatoria).
+    assert cliente.patch(f"/api/events/{event_id}", json={"tema_telao": None}, headers=auth).json()["tema_telao"] == "mallory_claro"
+
+    sorteio = cliente.post(
+        f"/api/events/{event_id}/sorteio",
+        json={"prize_unit_id": unidades[0], "idempotency_key": "tema-claro-01"},
+        headers=auth,
+    ).json()
+    durante = cliente.get(f"/api/public/{token}/estado").json()
+    assert durante["estado"] == "sorteando" and durante["evento"]["tema_telao"] == "mallory_claro"
+    # So a quantidade de rolos: nenhum nome de elegivel e nenhum digito do ganhador.
+    assert durante["nomes_animacao"] == []
+    assert durante["digitos_animacao"] == 4
+    assert durante["ganhador"] is None
+
+    time.sleep(1.2)
+    depois = cliente.get(f"/api/public/{token}/estado").json()
+    assert depois["estado"] == "resultado"
+    assert depois["ganhador"]["nome"] == sorteio["ganhador_nome"]
+    assert depois["digitos_animacao"] is None
+
+
 def test_animacao_nao_mostra_inelegiveis(cliente, auth):
     event_id, ids, unidades = montar_evento(participantes=6, presentes=2)
     token = _token_telao(event_id)

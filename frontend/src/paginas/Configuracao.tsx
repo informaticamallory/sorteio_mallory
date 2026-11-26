@@ -33,6 +33,7 @@ type Formulario = Pick<
   | 'duracao_animacao_ms'
   | 'fuso_horario'
   | 'carrossel_segundos'
+  | 'tema_telao'
   | 'recepcao_publica_ativa'
   | 'autocadastro_ativo'
   | 'autocadastro_inicio'
@@ -107,6 +108,7 @@ export default function Configuracao() {
       duracao_animacao_ms: evento.duracao_animacao_ms,
       fuso_horario: evento.fuso_horario,
       carrossel_segundos: evento.carrossel_segundos,
+      tema_telao: evento.tema_telao ?? 'classico',
       recepcao_publica_ativa: evento.recepcao_publica_ativa,
       autocadastro_ativo: evento.autocadastro_ativo,
       autocadastro_inicio: evento.autocadastro_inicio,
@@ -251,6 +253,45 @@ export default function Configuracao() {
       <section className="cartao p-5">
         <h2 className="mb-4 font-semibold text-slate-900">Apresentação</h2>
         <div className="grid gap-4 sm:grid-cols-2">
+          <div className="sm:col-span-2">
+            <span className="rotulo">Visual do telão</span>
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Visual do telão">
+              {(
+                [
+                  ['classico', 'Clássico', 'Azul e dourado, com as cores deste evento. Nomes girando no sorteio.'],
+                  ['mallory_claro', 'Mallory claro', 'Cinza e laranja Mallory, fonte Sora. Números girando como caça-níquel.'],
+                ] as const
+              ).map(([valor, titulo, descricao]) => {
+                const ativo = (form.tema_telao ?? 'classico') === valor
+                return (
+                  <label
+                    key={valor}
+                    className={`flex cursor-pointer gap-3 rounded-lg border p-3 ${
+                      ativo ? 'border-marca-400 bg-marca-50' : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <input
+                      type="radio"
+                      name="tema-telao"
+                      className="mt-1 accent-marca-600"
+                      checked={ativo}
+                      onChange={() => atualizar({ tema_telao: valor })}
+                    />
+                    <span>
+                      <span className="block text-sm font-semibold text-slate-900">{titulo}</span>
+                      <span className="block text-xs text-slate-500">{descricao}</span>
+                    </span>
+                  </label>
+                )
+              })}
+            </div>
+            {form.tema_telao === 'mallory_claro' && (
+              <p className="mt-1 text-xs text-slate-500">
+                No Mallory claro o telão usa a paleta da Mallory (as cores do evento ficam para o Clássico). Para os
+                números girarem bem, deixe o suspense em pelo menos 2 segundos.
+              </p>
+            )}
+          </div>
           <div>
             <label className="rotulo" htmlFor="cfg-duracao">
               Duração da animação de suspense: {(form.duracao_animacao_ms / 1000).toFixed(1).replace('.', ',')}s

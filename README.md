@@ -257,6 +257,7 @@ arquivo gerado — no SQLite, colunas com FK devem ser adicionadas com `ALTER TA
 | `0010` | Perfis: `users.papel` aceita `ENTREGAS` (CHECK trocado como na 0007); contas `ORGANIZADOR` existentes viram `ENTREGAS` (sessão encerrada); `users.setor` e `users.pode_sortear`. O downgrade devolve `ENTREGAS` para `ORGANIZADOR`. |
 | `0011` | Modo de sorteio por evento: `events.modo_sorteio` (`numero_sorte` nos eventos existentes — nada muda), `events.matricula_faixa_inicio` e `events.matricula_faixa_fim` (vazias). |
 | `0012` | `events.recepcao_publica_ativa`: Recepção sem login (check-in e consulta) só com a chave ligada. Desligada, inclusive nos eventos existentes. |
+| `0018` | `events.tema_telao` (`classico` ou `mallory_claro`, CHECK): visual do telão por evento. Os eventos existentes ficam no `classico`. Só acréscimo. |
 
 ### Histórico com pesquisa
 

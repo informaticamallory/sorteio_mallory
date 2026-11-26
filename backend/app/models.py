@@ -141,6 +141,7 @@ class Event(Base):
     __table_args__ = (
         CheckConstraint("capacidade_bloco_padrao >= 1", name="ck_events_capacidade_bloco_positiva"),
         CheckConstraint("carrossel_segundos >= 0.5", name="ck_events_carrossel_minimo"),
+        CheckConstraint("tema_telao IN ('classico', 'mallory_claro')", name="ck_events_tema_telao"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -198,6 +199,10 @@ class Event(Base):
     matricula_faixa_inicio: Mapped[int | None] = mapped_column(Integer, nullable=True)
     matricula_faixa_fim: Mapped[int | None] = mapped_column(Integer, nullable=True)
     regras_confirmadas_em: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+
+    # Visual do telao: "classico" (azul/dourado com as cores do evento) ou
+    # "mallory_claro" (cinza e laranja Mallory, fonte Sora, numeros girando).
+    tema_telao: Mapped[str] = mapped_column(String(20), default="classico", server_default="classico")
 
     # Marca eventos de demonstracao, para que nunca se misturem aos reais.
     demo: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

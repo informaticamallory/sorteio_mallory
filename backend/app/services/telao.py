@@ -74,7 +74,21 @@ def _evento_payload(evento: Event) -> dict:
         "reduzir_animacoes": evento.reduzir_animacoes,
         "duracao_animacao_ms": evento.duracao_animacao_ms,
         "fuso_horario": evento.fuso_horario,
+        "tema_telao": evento.tema_telao or TEMA_CLASSICO,
     }
+
+
+TEMA_CLASSICO = "classico"
+TEMA_CLARO = "mallory_claro"
+
+
+def numero_exibido(evento: Event, participante: Participant) -> str:
+    """Numero que o telao mostra para o ganhador (como no anuncio do ganhador):
+    a matricula no modo faixa de matriculas; senao o numero da sorte com 4 digitos."""
+    matricula = matricula_da_sorte(evento, participante)
+    if matricula is not None:
+        return str(matricula)
+    return str(participante.numero_sorteio or 0).zfill(4)
 
 
 def _galeria(db: Session, evento: Event) -> list[dict]:
@@ -121,6 +135,8 @@ def _serializar(db: Session, evento: Event, ds: DisplayState) -> dict:
         "carrossel": None,
         # Carrossel agendado para depois da revelacao em curso (fim de bloco).
         "carrossel_agendado_em": None,
+        # Tema claro, durante o "sorteando": quantos rolos de numero girar.
+        "digitos_animacao": None,
     }
 
     if ds.estado == EstadoTelao.CARROSSEL_GANHADORES.value:
@@ -152,7 +168,14 @@ def _serializar(db: Session, evento: Event, ds: DisplayState) -> dict:
             }
 
     if ds.estado == EstadoTelao.SORTEANDO.value:
-        payload["nomes_animacao"] = list(ds.nomes_animacao or [])
+        if evento.tema_telao == TEMA_CLARO:
+            # Tema claro: os rolos giram numeros aleatorios. O telao recebe so
+            # QUANTOS digitos tem o numero (para montar os rolos); nenhum nome de
+            # elegivel e nenhum digito do ganhador antes da revelacao.
+            participante = db.get(Participant, sorteio.participant_id) if sorteio is not None else None
+            payload["digitos_animacao"] = len(numero_exibido(evento, participante)) if participante else 4
+        else:
+            payload["nomes_animacao"] = list(ds.nomes_animacao or [])
 
     if sorteio is not None:
         payload["rodada"] = sorteio.rodada

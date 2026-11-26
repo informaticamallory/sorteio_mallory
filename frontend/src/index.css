@@ -182,6 +182,52 @@
   border-color: var(--cor-primaria);
 }
 
+/* ------------------------------------------- telao, tema "Mallory claro"
+ * Paleta da Mallory: grafite #606060, cinza #dddddd, laranja #ff5d1d e branco
+ * (fundo #eeeeee, como no modelo). Fonte Sora, carregada so quando o tema e
+ * usado (o navegador baixa cada peso na primeira vez que aparece).
+ */
+@font-face { font-family: 'Sora'; font-weight: 300; font-display: swap; src: url('/fonts/sora/sora-300.ttf') format('truetype'); }
+@font-face { font-family: 'Sora'; font-weight: 400; font-display: swap; src: url('/fonts/sora/sora-400.ttf') format('truetype'); }
+@font-face { font-family: 'Sora'; font-weight: 500; font-display: swap; src: url('/fonts/sora/sora-500.ttf') format('truetype'); }
+@font-face { font-family: 'Sora'; font-weight: 600; font-display: swap; src: url('/fonts/sora/sora-600.ttf') format('truetype'); }
+@font-face { font-family: 'Sora'; font-weight: 700; font-display: swap; src: url('/fonts/sora/sora-700.ttf') format('truetype'); }
+@font-face { font-family: 'Sora'; font-weight: 800; font-display: swap; src: url('/fonts/sora/sora-800.ttf') format('truetype'); }
+
+.telao-claro {
+  --tc-fundo: #eeeeee;
+  --tc-painel: #dddddd;
+  --tc-texto: #606060;
+  --tc-laranja: #ff5d1d;
+  --tc-branco: #ffffff;
+  background: var(--tc-fundo);
+  color: var(--tc-texto);
+  font-family: 'Sora', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Rolos de numero (caca-niquel): a fita gira enquanto o servidor revela. */
+@keyframes rolo-gira {
+  from { transform: translateY(0); }
+  to { transform: translateY(-50%); }
+}
+.rolo-girando {
+  animation: rolo-gira 0.32s linear infinite;
+  filter: blur(1.5px);
+}
+/* O rolo para: o digito "cai" no lugar com um pequeno tranco. */
+@keyframes rolo-pousa {
+  0% { transform: translateY(-70%); }
+  70% { transform: translateY(8%); }
+  100% { transform: translateY(0); }
+}
+.rolo-pousa {
+  animation: rolo-pousa 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.2) both;
+}
+@keyframes pontos-claro {
+  0%, 100% { background: #dddddd; }
+  50% { background: #ff5d1d; }
+}
+
 /* ------------------------------------------------ bilhete do Cartão da Sorte
  * Recortes laterais feitos com mascara (furos de verdade): funcionam sobre
  * qualquer cor de fundo. A camada externa e a borda verde; a interna, o

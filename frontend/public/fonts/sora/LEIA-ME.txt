@@ -1,0 +1,13 @@
+Fonte Sora (pesos 300 a 800), usada so no telao com o tema "Mallory claro".
+
+Sora e distribuida sob a SIL Open Font License 1.1 (fonte livre, a mesma do
+Google Fonts): pode ser usada e redistribuida junto com o sistema.
+https://openfontlicense.org
+
+Arquivos fornecidos pela Mallory em 26/11/2026 (renomeados pelo peso):
+  sora-300.ttf  Light
+  sora-400.ttf  Regular
+  sora-500.ttf  Medium
+  sora-600.ttf  SemiBold
+  sora-700.ttf  Bold
+  sora-800.ttf  ExtraBold

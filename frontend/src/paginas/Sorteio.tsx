@@ -18,6 +18,7 @@ import { ModalFinalizar } from './Blocos'
 import { usePainel } from './PainelLayout'
 import ModalAnulacao from './ModalAnulacao'
 import Icone from '../componentes/Icone'
+import { duracaoRevelacaoClaro } from './TelaoClaro'
 
 // Outro operador pode iniciar, pausar ou finalizar blocos em outro aparelho.
 const ATUALIZAR_BLOCOS_MS = 10_000
@@ -313,7 +314,10 @@ export default function Sorteio() {
       )
       return
     }
-    const espera = resultado !== null && !imediatoRef.current ? pausaS * 1000 : 0
+    // Tema "Mallory claro": a revelação continua no telão (rolos parando e nome
+    // sozinho) antes do card completo; a pausa conta a partir dali.
+    const extraTelao = evento.tema_telao === 'mallory_claro' ? duracaoRevelacaoClaro() : 0
+    const espera = resultado !== null && !imediatoRef.current ? pausaS * 1000 + extraTelao : 0
     setProximoEm(Date.now() + espera)
     const id = window.setTimeout(() => {
       const alvo = proximoRef.current
@@ -338,6 +342,7 @@ export default function Sorteio() {
     proximo?.unidade.id,
     pausaS,
     modoBlocos,
+    evento.tema_telao,
   ])
 
   // Contagem regressiva na tela.
