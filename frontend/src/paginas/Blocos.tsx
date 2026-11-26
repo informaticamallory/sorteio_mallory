@@ -1287,10 +1287,11 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
         </p>
       )}
 
-      {/* Celular e tablet: colunas empilhadas (sem rolagem lateral). Computador: lado a
-          lado, dividindo a largura; cada coluna rola por dentro, então a rolagem lateral
-          (só com muitos blocos) fica logo abaixo e nenhuma coluna parece cortada. */}
-      <div className="flex flex-col gap-3 lg:flex-row lg:items-start lg:overflow-x-auto lg:pb-3">
+      {/* Celular e tablet: colunas empilhadas. Computador: grade que divide a largura
+          (mínimo de 200 px por coluna); as que não cabem descem para a linha de baixo,
+          então nenhuma coluna fica cortada nem exige rolagem lateral. Cada coluna rola
+          por dentro. */}
+      <div className="flex flex-col gap-3 lg:grid lg:grid-cols-[repeat(auto-fit,minmax(12.5rem,1fr))] lg:items-start">
         {visiveis.map((chave) => {
           const bloco = blocos.get(chave)
           const itens = colunas[chave] ?? []
@@ -1314,11 +1315,9 @@ function Organizador({ base, aoSair }: { base: string; aoSair: (salvou: boolean)
                 }
                 setArrastando(null)
               }}
-              className={`flex w-full flex-col rounded-xl border bg-slate-50 lg:max-h-[75vh] ${
-                chave === SEM_BLOCO && itens.length === 0
-                  ? 'lg:w-52 lg:flex-none'
-                  : 'lg:w-auto lg:min-w-[15rem] lg:flex-1 lg:basis-0'
-              } ${acima ? 'border-rose-400' : chave === SEM_BLOCO ? 'border-marca-200' : 'border-slate-200'}`}
+              className={`flex w-full min-w-0 flex-col rounded-xl border bg-slate-50 lg:max-h-[75vh] ${
+                acima ? 'border-rose-400' : chave === SEM_BLOCO ? 'border-marca-200' : 'border-slate-200'
+              }`}
             >
               <header className="space-y-1.5 border-b border-slate-200 p-3">
                 {bloco ? (
