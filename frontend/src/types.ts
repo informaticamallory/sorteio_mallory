@@ -338,6 +338,7 @@ export interface Evento {
   claro_cor_painel?: string
   claro_cor_destaque?: string
   claro_cor_texto?: string
+  telao_subtitulo?: string | null
   demo: boolean
   criado_em: string
 }
@@ -662,6 +663,8 @@ export interface TelaoEventoPayload {
   tema_telao?: TemaTelao
   /** Cores do tema "Mallory claro" (configuráveis por evento). */
   cores_claro?: { fundo: string; painel: string; destaque: string; texto: string }
+  /** Texto ao lado da logo no telão claro (vazio: "Sorteios internos"). */
+  telao_subtitulo?: string | null
 }
 
 export type TemaTelao = 'classico' | 'mallory_claro'

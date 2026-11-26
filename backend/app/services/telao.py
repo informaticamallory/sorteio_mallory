@@ -81,6 +81,7 @@ def _evento_payload(evento: Event) -> dict:
             "destaque": evento.claro_cor_destaque,
             "texto": evento.claro_cor_texto,
         },
+        "telao_subtitulo": evento.telao_subtitulo,
     }
 
 

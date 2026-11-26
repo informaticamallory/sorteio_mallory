@@ -91,23 +91,36 @@ export default function TelaoClaro({
       }
     >
       {/* ------------------------------------------------ cabeçalho */}
-      <div
-        className="absolute z-20 flex items-center rounded-full"
-        style={{ left: u(88), top: u(88), height: u(46), padding: `0 ${u(30)}`, gap: u(30), background: CINZA }}
-      >
+      {/* Logo sozinha e, separado, o subtítulo do evento (Configuração). */}
+      <div className="absolute z-20 flex items-center" style={{ left: u(70), top: u(42), gap: u(26) }}>
         <MarcaMallory />
-        <span style={{ width: 1, height: u(26), background: CINZA_BORDA }} />
-        <span style={{ fontSize: u(10.5), letterSpacing: u(3.2), fontWeight: 500 }}>SORTEIOS INTERNOS</span>
+        <span
+          className="rounded-full"
+          style={{
+            background: CINZA,
+            padding: `${u(9)} ${u(22)}`,
+            fontSize: u(12),
+            letterSpacing: u(3),
+            fontWeight: 600,
+            textTransform: 'uppercase',
+            whiteSpace: 'nowrap',
+          }}
+        >
+          {estado.evento.telao_subtitulo || 'Sorteios internos'}
+        </span>
       </div>
       {mostrarCaixas && (
-        <div className="absolute z-20 flex" style={{ right: u(88), top: u(88), gap: u(22) }}>
+        <div className="absolute z-20 flex" style={{ right: u(70), top: u(36), gap: u(16) }}>
           {estado.bloco && <Caixa rotulo="BLOCO" valor={String(estado.bloco.numero).padStart(2, '0')} />}
           {estado.rodada !== null && <Caixa rotulo="RODADA" valor={String(estado.rodada)} />}
         </div>
       )}
 
       {/* ------------------------------------------------ estados */}
-      <main className="absolute inset-0 z-10 flex items-center justify-center">
+      <main
+        className="absolute inset-0 z-10 flex items-center justify-center"
+        style={{ paddingTop: u(140), paddingBottom: u(110) }}
+      >
         {estado.estado === 'aguardando' && <Aguardando estado={estado} reduzir={reduzir} />}
         {estado.estado === 'premio' && <ProximoPremio estado={estado} reduzir={reduzir} />}
         {estado.estado === 'sorteando' && <Sorteando estado={estado} reduzir={reduzir} somAtivo={somAtivo} />}
@@ -119,7 +132,7 @@ export default function TelaoClaro({
       {/* ------------------------------------------------ controles */}
       <div
         className={`absolute z-20 flex transition-opacity duration-500 ${controlesVisiveis ? 'opacity-100' : 'opacity-0'}`}
-        style={{ right: u(88), bottom: u(88), gap: u(28) }}
+        style={{ right: u(70), bottom: u(32), gap: u(18) }}
       >
         <Controle titulo={`Conexão: ${conexao}`}>
           {conexao === 'conectado' ? 'AO VIVO' : conexao === 'reconectando' ? 'RECONECTANDO' : 'OFFLINE'}
@@ -144,14 +157,14 @@ export default function TelaoClaro({
 function MarcaMallory() {
   const [falhou, setFalhou] = useState(false)
   if (falhou) {
-    return <span style={{ color: LARANJA, fontWeight: 800, fontSize: u(30), letterSpacing: u(-1) }}>MALLORY</span>
+    return <span style={{ color: LARANJA, fontWeight: 800, fontSize: u(40), letterSpacing: u(-1) }}>MALLORY</span>
   }
   return (
     <img
       src="/marca/mallory-laranja.png"
       alt="Mallory"
       onError={() => setFalhou(true)}
-      style={{ height: u(30), width: 'auto' }}
+      style={{ height: u(40), width: 'auto' }}
     />
   )
 }
@@ -160,28 +173,28 @@ function Caixa({ rotulo, valor }: { rotulo: string; valor: string }) {
   return (
     <div
       className="flex flex-col items-center justify-center"
-      style={{ width: u(126), height: u(126), borderRadius: u(16), background: CINZA }}
+      style={{ width: u(92), height: u(92), borderRadius: u(14), background: CINZA }}
     >
-      <span style={{ fontSize: u(11.5), fontWeight: 500 }}>{rotulo}</span>
-      <span style={{ fontSize: u(60), fontWeight: 800, lineHeight: 1.05, color: LARANJA }}>{valor}</span>
+      <span style={{ fontSize: u(10), fontWeight: 500 }}>{rotulo}</span>
+      <span style={{ fontSize: u(44), fontWeight: 800, lineHeight: 1.05, color: LARANJA }}>{valor}</span>
     </div>
   )
 }
 
 function Controle({ children, titulo, aoClicar }: { children: ReactNode; titulo: string; aoClicar?: () => void }) {
   const estilo: CSSProperties = {
-    height: u(46),
-    minWidth: u(140),
-    padding: `0 ${u(22)}`,
-    gap: u(14),
-    fontSize: u(11.5),
+    height: u(38),
+    minWidth: u(118),
+    padding: `0 ${u(18)}`,
+    gap: u(10),
+    fontSize: u(10.5),
     fontWeight: 500,
     background: CINZA,
     color: GRAFITE,
   }
   const conteudo = (
     <>
-      <span style={{ color: LARANJA, fontWeight: 700, fontSize: u(16) }}>+</span>
+      <span style={{ color: LARANJA, fontWeight: 700, fontSize: u(14) }}>+</span>
       {children}
     </>
   )
@@ -684,24 +697,29 @@ function Carrossel({ estado, reduzir }: { estado: TelaoEstado; reduzir: boolean 
 
 /**
  * Grade do resumo do carrossel (os dois temas): quanto mais ganhadores, mais
- * colunas e pílulas menores, para caber inteiro no telão (blocos de até ~90).
+ * colunas e pílulas menores, para caber entre o cabeçalho e os controles
+ * (calculado para blocos de até ~100 ganhadores, nomes em até duas linhas).
  * `largura` em unidades do modelo (2000 = tela toda).
  */
 export function gradeResumo(n: number): { colunas: number; escala: number; largura: number } {
   if (n <= 8) return { colunas: 2, escala: 1, largura: 1100 }
   if (n <= 15) return { colunas: 3, escala: 0.86, largura: 1500 }
   if (n <= 28) return { colunas: 4, escala: 0.74, largura: 1760 }
-  if (n <= 45) return { colunas: 5, escala: 0.64, largura: 1840 }
-  if (n <= 66) return { colunas: 6, escala: 0.56, largura: 1860 }
-  return { colunas: 7, escala: 0.5, largura: 1880 }
+  if (n <= 45) return { colunas: 5, escala: 0.6, largura: 1840 }
+  if (n <= 66) return { colunas: 6, escala: 0.5, largura: 1860 }
+  if (n <= 80) return { colunas: 7, escala: 0.46, largura: 1880 }
+  return { colunas: 8, escala: 0.42, largura: 1900 }
 }
 
 function ResumoCarrossel({ slides, reduzir }: { slides: SlideCarrossel[]; reduzir: boolean }) {
   // Quanto mais ganhadores, mais colunas e menor a pílula, para caber na tela.
   const { colunas, escala, largura } = gradeResumo(slides.length)
   return (
-    <div className={`flex flex-col items-center ${reduzir ? '' : 'animate-sobe-suave'}`} style={{ marginTop: u(60) }}>
-      <h2 style={{ fontSize: u(72), fontWeight: 800, color: GRAFITE }}>Parabéns aos vencedores!</h2>
+    <div className={`flex flex-col items-center ${reduzir ? '' : 'animate-sobe-suave'}`}>
+      {/* Com muitos ganhadores o título encolhe, para a lista caber entre o cabeçalho e os controles. */}
+      <h2 style={{ fontSize: u(slides.length > 28 ? 54 : 72), fontWeight: 800, color: GRAFITE, lineHeight: 1.1 }}>
+        Parabéns aos vencedores!
+      </h2>
       <ul
         className="grid"
         style={{ width: u(largura), marginTop: u(46 * escala), gap: `${u(20 * escala)} ${u(20)}`, gridTemplateColumns: `repeat(${colunas}, minmax(0, 1fr))` }}

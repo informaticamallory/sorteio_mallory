@@ -259,6 +259,7 @@ arquivo gerado — no SQLite, colunas com FK devem ser adicionadas com `ALTER TA
 | `0012` | `events.recepcao_publica_ativa`: Recepção sem login (check-in e consulta) só com a chave ligada. Desligada, inclusive nos eventos existentes. |
 | `0018` | `events.tema_telao` (`classico` ou `mallory_claro`, CHECK): visual do telão por evento. Os eventos existentes ficam no `classico`. Só acréscimo. |
 | `0019` | `events.claro_cor_fundo`, `claro_cor_painel`, `claro_cor_destaque` e `claro_cor_texto`: cores próprias do tema `mallory_claro`, começando na paleta Mallory. Só acréscimos. |
+| `0020` | `events.telao_subtitulo` (até 80 caracteres, opcional): texto ao lado da logo no telão claro. Vazio nos eventos existentes (mostra "Sorteios internos"). Só acréscimo. |
 
 ### Histórico com pesquisa
 

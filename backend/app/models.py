@@ -208,6 +208,9 @@ class Event(Base):
     claro_cor_painel: Mapped[str] = mapped_column(String(20), default="#dddddd", server_default="#dddddd")
     claro_cor_destaque: Mapped[str] = mapped_column(String(20), default="#ff5d1d", server_default="#ff5d1d")
     claro_cor_texto: Mapped[str] = mapped_column(String(20), default="#606060", server_default="#606060")
+    # Texto ao lado da logo no telao claro (ex.: "Sorteio de aniversario de 52 anos").
+    # Vazio: "Sorteios internos".
+    telao_subtitulo: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
     # Marca eventos de demonstracao, para que nunca se misturem aos reais.
     demo: Mapped[bool] = mapped_column(Boolean, default=False, index=True)

@@ -138,6 +138,19 @@ def test_cores_do_tema_claro_sao_proprias_e_validadas(cliente, auth):
     assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["cores_claro"]["destaque"] == "#0055aa"
 
 
+def test_subtitulo_do_telao(cliente, auth):
+    event_id, _, _ = montar_evento()
+    token = _token_telao(event_id)
+    url = f"/api/events/{event_id}"
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["telao_subtitulo"] is None
+    resposta = cliente.patch(url, json={"telao_subtitulo": "  Sorteio de aniversário de 52 anos  "}, headers=auth)
+    assert resposta.json()["telao_subtitulo"] == "Sorteio de aniversário de 52 anos"
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["telao_subtitulo"] == "Sorteio de aniversário de 52 anos"
+    assert cliente.patch(url, json={"telao_subtitulo": "x" * 81}, headers=auth).status_code == 422
+    # Vazio volta ao padrao ("Sorteios internos" no telao).
+    assert cliente.patch(url, json={"telao_subtitulo": "   "}, headers=auth).json()["telao_subtitulo"] is None
+
+
 def test_telao_sem_autenticacao_nao_acessa_rotas_administrativas(cliente):
     event_id, _, unidades = montar_evento()
     assert cliente.get(f"/api/events/{event_id}/participantes").status_code == 401

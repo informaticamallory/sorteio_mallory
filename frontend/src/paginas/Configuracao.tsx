@@ -39,6 +39,7 @@ type Formulario = Pick<
   | 'claro_cor_painel'
   | 'claro_cor_destaque'
   | 'claro_cor_texto'
+  | 'telao_subtitulo'
   | 'recepcao_publica_ativa'
   | 'autocadastro_ativo'
   | 'autocadastro_inicio'
@@ -118,6 +119,7 @@ export default function Configuracao() {
       claro_cor_painel: evento.claro_cor_painel ?? PALETA_MALLORY.painel,
       claro_cor_destaque: evento.claro_cor_destaque ?? PALETA_MALLORY.destaque,
       claro_cor_texto: evento.claro_cor_texto ?? PALETA_MALLORY.texto,
+      telao_subtitulo: evento.telao_subtitulo ?? '',
       recepcao_publica_ativa: evento.recepcao_publica_ativa,
       autocadastro_ativo: evento.autocadastro_ativo,
       autocadastro_inicio: evento.autocadastro_inicio,
@@ -209,6 +211,23 @@ export default function Configuracao() {
           <p className="mb-4 text-sm text-slate-500">
             Cores só deste tema (as do Clássico ficam guardadas). Mantenha bom contraste entre fundo e texto.
           </p>
+          <div className="mb-4">
+            <label className="rotulo" htmlFor="cfg-subtitulo">
+              Texto ao lado da logo
+            </label>
+            <input
+              id="cfg-subtitulo"
+              className="campo"
+              maxLength={80}
+              placeholder="Sorteios internos"
+              value={form.telao_subtitulo ?? ''}
+              onChange={(e) => atualizar({ telao_subtitulo: e.target.value })}
+            />
+            <p className="mt-1 text-xs text-slate-500">
+              Aparece no alto do telão, em maiúsculas. Ex.: Sorteio de aniversário de 52 anos. Vazio: &quot;Sorteios
+              internos&quot;.
+            </p>
+          </div>
           <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             <Cor rotulo="Fundo" valor={form.claro_cor_fundo ?? PALETA_MALLORY.fundo} aoMudar={(v) => atualizar({ claro_cor_fundo: v })} />
             <Cor rotulo="Painéis" valor={form.claro_cor_painel ?? PALETA_MALLORY.painel} aoMudar={(v) => atualizar({ claro_cor_painel: v })} />

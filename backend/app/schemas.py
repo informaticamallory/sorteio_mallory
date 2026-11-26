@@ -195,6 +195,13 @@ class EventoConfigIn(BaseModel):
     claro_cor_painel: str | None = None
     claro_cor_destaque: str | None = None
     claro_cor_texto: str | None = None
+    # Texto ao lado da logo no telao claro. Vazio ou null: "Sorteios internos".
+    telao_subtitulo: str | None = Field(default=None, max_length=80)
+
+    @field_validator("telao_subtitulo")
+    @classmethod
+    def _subtitulo(cls, v: str | None) -> str | None:
+        return (v or "").strip() or None
 
     @field_validator("autocadastro_inicio", "autocadastro_fim")
     @classmethod
@@ -292,6 +299,7 @@ class EventoOut(ORMModel):
     claro_cor_painel: str = "#dddddd"
     claro_cor_destaque: str = "#ff5d1d"
     claro_cor_texto: str = "#606060"
+    telao_subtitulo: str | None = None
     demo: bool
     criado_em: datetime
 
