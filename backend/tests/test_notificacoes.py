@@ -284,3 +284,36 @@ def test_canal_privado_confere_token_conta_e_perfil(cliente, auth):
         db.get(User, resultado["usuario"]["id"]).sessao_versao += 1
     assert verificar_sessao(token)[0] == 401
     assert cliente.get("/api/minha-area/stream").status_code == 401
+
+
+# ------------------------------------------------------------------ evento de teste
+def test_evento_de_teste_some_do_portal_sem_apagar_nada(cliente, auth):
+    from apoio import cabecalho, conta
+
+    event_id, participantes, unidades = montar_evento(participantes=1)
+    configurar_evento(event_id)
+    cab = _colaborador(cliente, auth, event_id, participantes[0], "00001")
+    _sortear(cliente, auth, event_id, unidades[0], chave="evento-teste")
+    _revelar_tudo()
+    assert len(_notificacoes(cliente, cab)) == 1
+    assert [p["evento_id"] for p in cliente.get("/api/minha-area", headers=cab).json()["participacoes"]] == [event_id]
+
+    # So o admin marca o evento como teste (o Organizador - RH configura, mas nao marca).
+    rh = cabecalho(conta("ORGANIZADOR", login="rh.teste"))
+    assert cliente.patch(f"/api/events/{event_id}", json={"evento_teste": True}, headers=rh).status_code == 403
+    resposta = cliente.patch(f"/api/events/{event_id}", json={"evento_teste": True}, headers=auth)
+    assert resposta.status_code == 200 and resposta.json()["evento_teste"] is True
+
+    # Portal: sem aba, sem premios, sem avisos e sem contador. Nada foi apagado.
+    area = cliente.get("/api/minha-area", headers=cab).json()
+    assert area["participacoes"] == [] and area["notificacoes_nao_lidas"] == 0
+    assert _notificacoes(cliente, cab) == []
+    with session_scope() as db:
+        assert db.scalar(select(Notificacao).where(Notificacao.event_id == event_id)) is not None
+    # Fora da lista de cadastro pelo QR Code.
+    assert event_id not in [e["id"] for e in cliente.get("/api/autocadastro/eventos").json()]
+
+    # Desmarcar volta tudo como estava.
+    cliente.patch(f"/api/events/{event_id}", json={"evento_teste": False}, headers=auth)
+    assert len(_notificacoes(cliente, cab)) == 1
+    assert len(cliente.get("/api/minha-area", headers=cab).json()["participacoes"]) == 1

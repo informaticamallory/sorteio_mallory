@@ -3,18 +3,19 @@ from __future__ import annotations
 import re
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response, status
-from sqlalchemy import func, select
+from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..database import get_db
 from ..deps import evento_atual, exigir_permissao, requer
-from ..permissoes import Permissao
+from ..permissoes import Permissao, tem_permissao
 from ..models import (
     AuditLog,
     DisplayState,
     Draw,
     Event,
     ModoSorteio,
+    Notificacao,
     Participant,
     Prize,
     PrizeUnit,
@@ -87,35 +88,62 @@ def excluir(
     db: Session = Depends(get_db),
     user: User = Depends(GERENCIAR),
 ) -> Response:
-    """Apaga o evento e tudo dele (so o admin). So vale para evento SEM sorteio:
-    resultado de sorteio (valido ou anulado) nunca e apagado.
+    """Apaga o evento e tudo dele (so o admin), com o nome digitado como confirmacao.
 
-    Exige o nome do evento digitado, como confirmacao. Fica um registro na
-    auditoria geral (sem evento), com o que foi apagado.
+    Evento SEM sorteio: apaga direto. Evento COM sorteios: so se estiver marcado
+    como evento de teste e com `apagar_sorteios` -- os resultados de um evento
+    real nunca sao apagados. Os sorteios, entregas e notificacoes vao junto.
+
+    A auditoria e preservada: os registros do evento ficam (sem o vinculo com
+    o evento apagado) e entra um registro geral com o que foi apagado.
     """
     if dados.nome_confirmacao.strip().lower() != evento.nome.strip().lower():
         raise HTTPException(
             status.HTTP_422_UNPROCESSABLE_ENTITY, "Digite o nome do evento exatamente como aparece para confirmar."
         )
     sorteios = db.scalar(select(func.count(Draw.id)).where(Draw.event_id == evento.id)) or 0
-    if sorteios:
+    if sorteios and not evento.evento_teste:
         raise HTTPException(
             status.HTTP_409_CONFLICT,
             f"Este evento já tem {sorteios} sorteio(s) registrado(s) e não pode ser apagado: "
-            "os resultados ficam guardados.",
+            "os resultados ficam guardados. Se é um evento de teste, marque-o como \"Evento de teste\" "
+            "em Editar e exclua de novo.",
+        )
+    if sorteios and not dados.apagar_sorteios:
+        raise HTTPException(
+            status.HTTP_409_CONFLICT,
+            f"Este evento de teste tem {sorteios} sorteio(s). Confirme que os sorteios, entregas e "
+            "notificações dele também serão apagados.",
         )
     contagem = {
         "participantes": db.scalar(select(func.count(Participant.id)).where(Participant.event_id == evento.id)) or 0,
         "premios": db.scalar(select(func.count(Prize.id)).where(Prize.event_id == evento.id)) or 0,
+        "sorteios": sorteios,
+        "notificacoes": db.scalar(select(func.count(Notificacao.id)).where(Notificacao.event_id == evento.id)) or 0,
     }
+    # Auditoria preservada: os registros do evento perdem so o vinculo.
+    db.execute(update(AuditLog).where(AuditLog.event_id == evento.id).values(event_id=None))
+    if sorteios:
+        # Ordem que o banco exige: os sorteios apontam para participantes
+        # (RESTRICT), para blocos e para o sorteio anterior (resorteio).
+        db.execute(delete(Notificacao).where(Notificacao.event_id == evento.id))
+        db.execute(update(Draw).where(Draw.event_id == evento.id).values(draw_anterior_id=None))
+        db.execute(delete(Draw).where(Draw.event_id == evento.id))
     db.add(
         AuditLog(
             event_id=None,
             usuario_id=user.id,
             acao="evento_excluido",
-            detalhes={"evento_id": evento.id, "nome": evento.nome, "empresa": evento.empresa_nome, **contagem},
+            detalhes={
+                "evento_id": evento.id,
+                "nome": evento.nome,
+                "empresa": evento.empresa_nome,
+                "evento_teste": evento.evento_teste,
+                **contagem,
+            },
         )
     )
+    db.flush()
     db.delete(evento)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
@@ -129,10 +157,13 @@ def atualizar_config(
     user: User = Depends(CONFIGURAR),
 ) -> Event:
     alterado = dados.model_dump(exclude_unset=True)
-    # Tema e cores do claro sao obrigatorios: null nao muda nada.
-    for campo in ("tema_telao", *CAMPOS_COR_CLARO):
+    # Tema, cores do claro e marca de teste sao obrigatorios: null nao muda nada.
+    for campo in ("tema_telao", "evento_teste", *CAMPOS_COR_CLARO):
         if campo in alterado and alterado[campo] is None:
             del alterado[campo]
+    # Marcar/desmarcar evento de teste (some do portal do colaborador): so o admin.
+    if "evento_teste" in alterado and not tem_permissao(user, Permissao.GERENCIAR_EVENTOS):
+        raise HTTPException(status.HTTP_403_FORBIDDEN, "Só o administrador marca um evento como teste.")
     for campo in CAMPOS_COR:
         valor = alterado.get(campo)
         if valor is not None and not COR_RE.match(valor):
@@ -156,7 +187,10 @@ def atualizar_config(
             event_id=evento.id,
             usuario_id=user.id,
             acao="evento_configurado",
-            detalhes={"campos": list(alterado.keys())},
+            detalhes={
+                "campos": list(alterado.keys()),
+                **({"evento_teste": alterado["evento_teste"]} if "evento_teste" in alterado else {}),
+            },
         )
     )
     db.commit()

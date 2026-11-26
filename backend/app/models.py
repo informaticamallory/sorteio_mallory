@@ -212,6 +212,11 @@ class Event(Base):
     # Vazio: "Sorteios internos".
     telao_subtitulo: Mapped[str | None] = mapped_column(String(80), nullable=True)
 
+    # Evento de teste (marcado pelo admin): nao aparece no portal do colaborador
+    # (aba, premios e notificacoes), nao manda aviso/push ao celular e nao entra
+    # na lista de cadastro pelo QR Code. Nada e apagado; desmarcar volta tudo.
+    evento_teste: Mapped[bool] = mapped_column(Boolean, default=False, server_default="0")
+
     # Marca eventos de demonstracao, para que nunca se misturem aos reais.
     demo: Mapped[bool] = mapped_column(Boolean, default=False, index=True)
     criado_em: Mapped[datetime] = mapped_column(DateTime, default=utcnow)

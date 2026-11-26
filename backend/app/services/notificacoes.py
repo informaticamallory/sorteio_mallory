@@ -128,6 +128,9 @@ def avisar_ganhador(db: Session, sorteio: Draw, tipo: str, quando: datetime | No
     participante = db.get(Participant, sorteio.participant_id)
     if participante is None or participante.usuario_id is None:
         return
+    evento = db.get(Event, sorteio.event_id)
+    if evento is not None and evento.evento_teste:
+        return  # evento de teste: nada chega ao celular do colaborador
     atraso = max(0.0, (quando - utcnow()).total_seconds()) if quando else 0.0
     bus.publicar(bus.canal_usuario(participante.usuario_id), {"tipo": tipo}, atraso_s=atraso)
 
@@ -141,6 +144,8 @@ def _do_usuario(user: User):
             select(Participant.id).where(Participant.usuario_id == user.id)
         ),
         or_(Notificacao.disponivel_em.is_(None), Notificacao.disponivel_em <= agora),
+        # Evento de teste: os avisos ficam guardados, mas nao aparecem no portal.
+        Notificacao.event_id.in_(select(Event.id).where(Event.evento_teste.is_(False))),
     )
 
 

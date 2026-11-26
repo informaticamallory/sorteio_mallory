@@ -144,6 +144,8 @@ def _candidatas() -> list[tuple[int, int, int | None, int]]:
                     Notificacao.usuario_id.is_not(None),
                     or_(Notificacao.disponivel_em.is_(None), Notificacao.disponivel_em <= agora),
                     Notificacao.criada_em >= agora - timedelta(hours=JANELA_HORAS),
+                    # Evento de teste nao manda push ao celular.
+                    Notificacao.event_id.in_(select(Event.id).where(Event.evento_teste.is_(False))),
                 )
             ).all()
         ]

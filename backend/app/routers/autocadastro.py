@@ -79,7 +79,10 @@ def cartao(evento: Event, participante: Participant) -> CartaoSorteOut:
 @router.get("/eventos", response_model=list[EventoAutocadastroOut])
 def eventos_abertos(db: Session = Depends(get_db)) -> list[EventoAutocadastroOut]:
     eventos = db.scalars(
-        select(Event).where(Event.autocadastro_ativo.is_(True)).order_by(Event.criado_em.desc())
+        select(Event)
+        # Evento de teste nao aparece na lista do cadastro pelo QR Code.
+        .where(Event.autocadastro_ativo.is_(True), Event.evento_teste.is_(False))
+        .order_by(Event.criado_em.desc())
     ).all()
     return [_publico(e) for e in eventos if servico.cadastro_aberto(e)]
 

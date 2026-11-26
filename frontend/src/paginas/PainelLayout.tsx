@@ -133,6 +133,10 @@ export default function PainelLayout() {
           <div className="border-b border-amber-200 bg-amber-50 px-4 py-1.5 text-center text-xs text-amber-900 sm:px-6">
             Evento de demonstração — dados fictícios, separados dos eventos reais
           </div>
+        ) : evento.evento_teste ? (
+          <div className="border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-center text-xs text-slate-700 sm:px-6">
+            Evento de teste — não aparece no portal do colaborador nem manda avisos para o celular
+          </div>
         ) : undefined
       }
     >

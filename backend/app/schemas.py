@@ -162,6 +162,9 @@ class EventoIn(BaseModel):
 class ExcluirEventoIn(BaseModel):
     # Nome do evento digitado pelo admin, como confirmacao.
     nome_confirmacao: str = Field(min_length=1, max_length=200)
+    # Evento de teste com sorteios: confirmacao explicita de que os sorteios,
+    # entregas e notificacoes dele tambem serao apagados.
+    apagar_sorteios: bool = False
 
 
 class EventoConfigIn(BaseModel):
@@ -197,6 +200,8 @@ class EventoConfigIn(BaseModel):
     claro_cor_texto: str | None = None
     # Texto ao lado da logo no telao claro. Vazio ou null: "Sorteios internos".
     telao_subtitulo: str | None = Field(default=None, max_length=80)
+    # Evento de teste: oculto no portal do colaborador. So o admin altera.
+    evento_teste: bool | None = None
 
     @field_validator("telao_subtitulo")
     @classmethod
@@ -300,6 +305,7 @@ class EventoOut(ORMModel):
     claro_cor_destaque: str = "#ff5d1d"
     claro_cor_texto: str = "#606060"
     telao_subtitulo: str | None = None
+    evento_teste: bool = False
     demo: bool
     criado_em: datetime
 

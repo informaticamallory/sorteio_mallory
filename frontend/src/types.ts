@@ -339,6 +339,8 @@ export interface Evento {
   claro_cor_destaque?: string
   claro_cor_texto?: string
   telao_subtitulo?: string | null
+  /** Evento de teste: oculto no portal do colaborador. */
+  evento_teste?: boolean
   demo: boolean
   criado_em: string
 }

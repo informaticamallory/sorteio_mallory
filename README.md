@@ -260,6 +260,7 @@ arquivo gerado — no SQLite, colunas com FK devem ser adicionadas com `ALTER TA
 | `0018` | `events.tema_telao` (`classico` ou `mallory_claro`, CHECK): visual do telão por evento. Os eventos existentes ficam no `classico`. Só acréscimo. |
 | `0019` | `events.claro_cor_fundo`, `claro_cor_painel`, `claro_cor_destaque` e `claro_cor_texto`: cores próprias do tema `mallory_claro`, começando na paleta Mallory. Só acréscimos. |
 | `0020` | `events.telao_subtitulo` (até 80 caracteres, opcional): texto ao lado da logo no telão claro. Vazio nos eventos existentes (mostra "Sorteios internos"). Só acréscimo. |
+| `0021` | `events.evento_teste` (desligado nos existentes): evento de teste, que some do portal do colaborador (aba, prêmios e notificações), não manda aviso nem push e sai da lista de cadastro. Só o admin marca. Só acréscimo. |
 
 ### Histórico com pesquisa
 

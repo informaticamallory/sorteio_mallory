@@ -18,12 +18,17 @@ export default function Eventos() {
   const [nome, setNome] = useState('')
   const [empresa, setEmpresa] = useState('')
   const [salvando, setSalvando] = useState(false)
-  const [editando, setEditando] = useState<{ id: number; nome: string; empresa: string } | null>(null)
+  const [editando, setEditando] = useState<{ id: number; nome: string; empresa: string; teste: boolean } | null>(null)
   const [excluindo, setExcluindo] = useState<Evento | null>(null)
   const [confirmacao, setConfirmacao] = useState('')
+  // Evento de teste: confirmação de que os sorteios, entregas e notificações vão junto.
+  const [apagarSorteios, setApagarSorteios] = useState(false)
   const [aviso, setAviso] = useState('')
 
-  useEffect(() => setConfirmacao(''), [excluindo])
+  useEffect(() => {
+    setConfirmacao('')
+    setApagarSorteios(false)
+  }, [excluindo])
 
   async function salvarEdicao(e: React.FormEvent) {
     e.preventDefault()
@@ -33,7 +38,12 @@ export default function Eventos() {
     try {
       await requisitar(`/api/events/${editando.id}`, {
         metodo: 'PATCH',
-        corpo: { nome: editando.nome.trim(), empresa_nome: editando.empresa.trim() },
+        corpo: {
+          nome: editando.nome.trim(),
+          empresa_nome: editando.empresa.trim(),
+          // Só o admin marca evento de teste (o servidor confere de novo).
+          ...(pode('gerenciar_eventos') ? { evento_teste: editando.teste } : {}),
+        },
       })
       setEditando(null)
       await carregar()
@@ -52,7 +62,7 @@ export default function Eventos() {
     try {
       await requisitar(`/api/events/${excluindo.id}`, {
         metodo: 'DELETE',
-        corpo: { nome_confirmacao: confirmacao.trim() },
+        corpo: { nome_confirmacao: confirmacao.trim(), apagar_sorteios: apagarSorteios },
       })
       setAviso(`Evento “${excluindo.nome}” excluído.`)
       setExcluindo(null)
@@ -151,6 +161,14 @@ export default function Eventos() {
                           Demonstração
                         </span>
                       )}
+                      {evento.evento_teste && (
+                        <span
+                          className="etiqueta ml-2 bg-slate-100 text-slate-700 ring-1 ring-inset ring-slate-200"
+                          title="Evento de teste: não aparece no portal do colaborador"
+                        >
+                          Teste
+                        </span>
+                      )}
                     </td>
                     <td className="hidden text-slate-600 sm:table-cell">{evento.empresa_nome || '—'}</td>
                     <td className="hidden text-slate-600 md:table-cell">
@@ -174,7 +192,14 @@ export default function Eventos() {
                             type="button"
                             className="btn-sutil"
                             title="Editar nome e empresa"
-                            onClick={() => setEditando({ id: evento.id, nome: evento.nome, empresa: evento.empresa_nome ?? '' })}
+                            onClick={() =>
+                              setEditando({
+                                id: evento.id,
+                                nome: evento.nome,
+                                empresa: evento.empresa_nome ?? '',
+                                teste: evento.evento_teste ?? false,
+                              })
+                            }
                           >
                             <Icone nome="editar" />
                             <span className="hidden sm:inline">Editar</span>
@@ -233,6 +258,23 @@ export default function Eventos() {
                 onChange={(e) => setEditando({ ...editando, empresa: e.target.value })}
               />
             </div>
+            {pode('gerenciar_eventos') && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-slate-200 p-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-marca-600"
+                  checked={editando.teste}
+                  onChange={(e) => setEditando({ ...editando, teste: e.target.checked })}
+                />
+                <span>
+                  <span className="block text-sm font-semibold text-slate-900">Evento de teste</span>
+                  <span className="block text-xs text-slate-500">
+                    Some do portal do colaborador (aba, prêmios e notificações), não manda aviso para o celular e sai
+                    da lista de cadastro pelo QR Code. Nada é apagado; desmarque para voltar.
+                  </span>
+                </span>
+              </label>
+            )}
             <p className="text-xs text-slate-500">Cores, logo, telão e cadastro ficam em Configuração, dentro do evento.</p>
             <div className="flex justify-end gap-2 pt-2">
               <button type="button" className="btn-neutro" onClick={() => setEditando(null)}>
@@ -251,9 +293,28 @@ export default function Eventos() {
           <form onSubmit={excluir} className="space-y-4">
             <Aviso tipo="atencao">
               Isto <strong>apaga de vez</strong> o evento <strong>{excluindo.nome}</strong> e tudo dele: participantes,
-              prêmios, blocos, presença e configurações. Não dá para desfazer. Só é possível se o evento ainda não teve
-              nenhum sorteio.
+              prêmios, blocos, presença e configurações. Não dá para desfazer.{' '}
+              {excluindo.evento_teste
+                ? 'Por ser evento de teste, pode ser apagado mesmo com sorteios.'
+                : 'Evento com sorteio só pode ser apagado se estiver marcado como "Evento de teste" (em Editar).'}
             </Aviso>
+            {excluindo.evento_teste && (
+              <label className="flex cursor-pointer items-start gap-3 rounded-lg border border-rose-200 bg-rose-50 p-3">
+                <input
+                  type="checkbox"
+                  className="mt-0.5 h-4 w-4 accent-rose-600"
+                  checked={apagarSorteios}
+                  onChange={(e) => setApagarSorteios(e.target.checked)}
+                />
+                <span className="text-sm text-rose-900">
+                  <span className="block font-semibold">Apagar também os sorteios deste evento de teste</span>
+                  <span className="block text-xs">
+                    Somem os resultados, as entregas e as notificações dele (inclusive do portal dos colaboradores). O
+                    registro de auditoria é mantido.
+                  </span>
+                </span>
+              </label>
+            )}
             <div>
               <label className="rotulo" htmlFor="confirmar-nome">
                 Para confirmar, digite o nome do evento

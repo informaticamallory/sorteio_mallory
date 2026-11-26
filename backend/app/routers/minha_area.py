@@ -57,7 +57,8 @@ def minha_area(db: Session = Depends(get_db), user: User = Depends(PESSOAL)) -> 
     linhas = db.execute(
         select(Participant, Event)
         .join(Event, Participant.event_id == Event.id)
-        .where(Participant.usuario_id == user.id)
+        # Evento de teste nao aparece no portal (aba, premios, cartao).
+        .where(Participant.usuario_id == user.id, Event.evento_teste.is_(False))
         .order_by(Event.criado_em.desc())
     ).all()
     ids = [p.id for p, _e in linhas]
