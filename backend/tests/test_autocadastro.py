@@ -411,6 +411,24 @@ def test_mesma_pessoa_em_outro_evento_reaproveita_a_conta(cliente, auth):
     assert len(area.json()["participacoes"]) == 2
 
 
+def test_mesma_matricula_com_nome_escrito_diferente_reaproveita_a_conta(cliente, auth):
+    # A matricula e unica por pessoa: o nome diferente na planilha nao gera login ".e".
+    primeiro, p1, _ = montar_evento(participantes=1)
+    segundo, p2, _ = montar_evento(participantes=1)
+    configurar_evento(primeiro)
+    configurar_evento(segundo)
+    with session_scope() as db:
+        db.get(Participant, p1[0]).nome = "Everton Goncalves"
+        db.get(Participant, p2[0]).nome = "EVERTON VIEIRA GONCALVES"
+    a = autocadastrar(cliente, auth, primeiro, p1[0], "00001")
+    b = autocadastrar(cliente, auth, segundo, p2[0], "00001")
+
+    assert b["login"] == "00001" and a["usuario"]["id"] == b["usuario"]["id"]
+    with session_scope() as db:
+        assert db.get(User, b["usuario"]["id"]).nome == "EVERTON VIEIRA GONCALVES"
+        assert db.scalar(select(func.count(User.id)).where(User.papel == "COLABORADOR")) == 1
+
+
 def test_dois_aparelhos_com_o_mesmo_passe_so_um_conclui():
     event_id, participantes, _ = montar_evento(participantes=1)
     configurar_evento(event_id)

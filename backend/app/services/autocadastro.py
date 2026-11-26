@@ -35,7 +35,7 @@ from sqlalchemy.orm import Session
 from ..config import settings
 from ..models import AuditLog, Event, Notificacao, Papel, Participant, User, utcnow
 from ..security import hash_senha
-from ..texto import normalizar_busca, normalizar_matricula
+from ..texto import normalizar_matricula
 from . import identificacao
 from .autenticacao import limitador
 from .erros import RegraDeNegocio
@@ -153,10 +153,13 @@ def _login_livre(db: Session, base: str) -> str:
 def conta_para(db: Session, evento: Event, participante: Participant) -> tuple[User | None, str]:
     """Conta existente a reaproveitar (ou None) e o login que o colaborador usara.
 
-    O login padrao e a matricula. Uma conta com esse login so e reaproveitada
-    quando e de COLABORADOR com o mesmo nome (a mesma pessoa em outro evento,
-    ou um cadastro liberado pelo check-in); senao o colaborador ganha um login
-    proprio e nenhuma conta alheia e tocada.
+    O login padrao e a matricula. A matricula e unica por pessoa (decisao do
+    cliente, 26/11/2026; PJ recebem numero proprio no cadastro de participantes),
+    entao uma conta de COLABORADOR com esse login e sempre a mesma pessoa (outro
+    evento, ou cadastro liberado pelo check-in) e e reaproveitada, mesmo com o
+    nome escrito de outro jeito. Nunca se reaproveita conta da equipe (a senha
+    viraria os 5 digitos do CPF) nem conta ja ligada a outro participante deste
+    evento: nesses casos o colaborador ganha um login proprio.
     """
     base = participante.matricula.strip().lower()
     existente = db.scalar(select(User).where(User.usuario == base))
@@ -167,11 +170,7 @@ def conta_para(db: Session, evento: Event, participante: Participant) -> tuple[U
             Participant.event_id == evento.id, Participant.usuario_id == existente.id
         )
     )
-    mesma_pessoa = (
-        existente.papel == Papel.COLABORADOR.value
-        and normalizar_busca(existente.nome) == normalizar_busca(participante.nome)
-        and vinculada_aqui is None
-    )
+    mesma_pessoa = existente.papel == Papel.COLABORADOR.value and vinculada_aqui is None
     if mesma_pessoa:
         if not existente.ativo:
             raise RegraDeNegocio("Sua conta está desativada. Procure a organização do evento.", 403)
@@ -244,6 +243,8 @@ def concluir(
         db.add(conta)
         db.flush()
     else:
+        # O nome da planilha mais recente passa a valer para a conta.
+        conta.nome = participante.nome
         conta.senha_hash = hash_senha(senha)
         conta.deve_trocar_senha = False
         conta.senha_alterada_em = agora
