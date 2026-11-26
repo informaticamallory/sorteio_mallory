@@ -136,6 +136,11 @@ def test_cada_ganhador_fica_pelo_menos_meio_segundo(cliente, auth):
         resposta = cliente.patch(_api(event_id, ""), json={"carrossel_segundos": segundos}, headers=auth)
         assert resposta.json()["carrossel_segundos"] == segundos
 
+    # Suspense do sorteio no telao: tambem a partir de 0,5 s.
+    assert cliente.patch(_api(event_id, ""), json={"duracao_animacao_ms": 400}, headers=auth).status_code == 422
+    resposta = cliente.patch(_api(event_id, ""), json={"duracao_animacao_ms": 500}, headers=auth)
+    assert resposta.json()["duracao_animacao_ms"] == 500
+
     # Com 0,5 s, o carrossel avanca a cada meio segundo.
     with session_scope() as db:
         ds = DisplayState(event_id=999, carrossel_indice=0, carrossel_duracao_s=0.5, carrossel_desde=utcnow() - timedelta(seconds=0.4))

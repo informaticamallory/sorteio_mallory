@@ -176,7 +176,8 @@ class EventoConfigIn(BaseModel):
     regras_participacao: str | None = None
     som_ativado: bool | None = None
     reduzir_animacoes: bool | None = None
-    duracao_animacao_ms: int | None = Field(default=None, ge=1000, le=30000)
+    # Suspense no telao antes de revelar o ganhador: de 0,5 s a 30 s.
+    duracao_animacao_ms: int | None = Field(default=None, ge=500, le=30000)
     fuso_horario: str | None = None
     recepcao_publica_ativa: bool | None = None
     autocadastro_ativo: bool | None = None

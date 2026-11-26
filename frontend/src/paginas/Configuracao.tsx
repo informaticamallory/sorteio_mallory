@@ -253,12 +253,12 @@ export default function Configuracao() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div>
             <label className="rotulo" htmlFor="cfg-duracao">
-              Duração da animação de suspense: {(form.duracao_animacao_ms / 1000).toFixed(1)}s
+              Duração da animação de suspense: {(form.duracao_animacao_ms / 1000).toFixed(1).replace('.', ',')}s
             </label>
             <input
               id="cfg-duracao"
               type="range"
-              min={1000}
+              min={500}
               max={20000}
               step={500}
               value={form.duracao_animacao_ms}
