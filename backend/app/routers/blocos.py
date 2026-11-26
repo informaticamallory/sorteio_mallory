@@ -14,6 +14,7 @@ from ..models import (
     BlocoSorteio,
     DisplayState,
     Draw,
+    EstadoTelao,
     Event,
     Participant,
     Prize,
@@ -398,8 +399,16 @@ def finalizar(
         lambda: servico.finalizar_bloco(db, evento, bloco, user, dados.confirmar_pendentes),
     )
     # Ao finalizar, o telao apresenta os ganhadores do bloco automaticamente
-    # (se houver algum). O proximo bloco NAO e iniciado.
-    if not ja_finalizado and carrossel.slides(db, bloco):
+    # (se houver algum). O proximo bloco NAO e iniciado. Se a apresentacao deste
+    # bloco ja esta no telao (comecou sozinha apos o ultimo sorteio), nao
+    # recomeca; se so estava agendada, comeca agora (ou apos a revelacao em curso).
+    ds_atual = db.get(DisplayState, evento.id)
+    ja_apresentando = (
+        ds_atual is not None
+        and ds_atual.estado == EstadoTelao.CARROSSEL_GANHADORES.value
+        and ds_atual.carrossel_bloco_id == bloco.id
+    )
+    if not ja_finalizado and not ja_apresentando and carrossel.slides(db, bloco):
         try:
             ds = carrossel.iniciar(db, evento, bloco, user, automatico=True)
             publicar_estado(db, evento, ds)

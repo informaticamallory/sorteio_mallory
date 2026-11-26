@@ -26,6 +26,9 @@ DURACAO_MINIMA_S = 0.5
 # Depois que o telao revela o ultimo sorteio do bloco, o ganhador fica na tela
 # por este tempo antes de o carrossel comecar sozinho.
 PAUSA_APOS_REVELACAO_S = 5
+# Tema "Mallory claro": depois do horario de revelacao os rolos ainda param e o
+# nome aparece sozinho (~4 s) antes do card completo; a pausa conta dali.
+EXTRA_REVELACAO_TEMA_CLARO_S = 4
 
 
 def slides(db: Session, bloco: BlocoSorteio) -> list[dict]:
@@ -104,7 +107,10 @@ def iniciar(
         # Fim de bloco durante a animacao do ultimo sorteio: a revelacao nao e
         # interrompida; o carrossel fica agendado e o telao muda sozinho
         # (transicao preguicosa em telao.obter_estado).
-        inicio = ds.revelar_em + timedelta(seconds=PAUSA_APOS_REVELACAO_S)
+        pausa = PAUSA_APOS_REVELACAO_S + (
+            EXTRA_REVELACAO_TEMA_CLARO_S if evento.tema_telao == "mallory_claro" else 0
+        )
+        inicio = ds.revelar_em + timedelta(seconds=pausa)
     else:
         inicio = agora
         ds.estado = EstadoTelao.CARROSSEL_GANHADORES.value

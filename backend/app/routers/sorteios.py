@@ -110,6 +110,25 @@ def conferir_elegiveis(
     )
 
 
+def _agendar_carrossel_no_fim_do_bloco(db: Session, evento: Event, sorteio, user: User) -> None:
+    """Ultimo premio do bloco sorteado: o telao passa sozinho ao carrossel dos
+    ganhadores, alguns segundos depois da revelacao (a animacao nao e cortada).
+
+    So agenda a apresentacao: nao finaliza o bloco (isso continua com o operador,
+    que confere os ausentes) e nao inicia o proximo. Na mesma transacao do
+    sorteio, sem commit. Bloco sem ganhador para mostrar: nada acontece.
+    """
+    if sorteio.bloco_id is None or proxima_do_bloco(db, sorteio.bloco_id) is not None:
+        return
+    bloco = db.get(BlocoSorteio, sorteio.bloco_id)
+    if bloco is None:
+        return
+    try:
+        carrossel.iniciar(db, evento, bloco, user, automatico=True)
+    except RegraDeNegocio:
+        pass  # sem slides: o sorteio segue normal, sem apresentacao
+
+
 @router.post("/sorteio", response_model=SorteioOut)
 def sortear(
     dados: SortearIn,
@@ -139,6 +158,7 @@ def sortear(
                 nomes_para_animacao(elegiveis, sorteio.participant_id),
                 evento.duracao_animacao_ms,
             )
+            _agendar_carrossel_no_fim_do_bloco(db, evento, sorteio, user)
         db.commit()
     except RegraDeNegocio as exc:
         db.rollback()

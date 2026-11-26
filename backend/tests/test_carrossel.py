@@ -104,6 +104,66 @@ def test_bloco_sem_ganhadores_nao_inicia_carrossel(cliente, auth):
     assert _comando(cliente, auth, event_id, "iniciar", bloco_id).status_code == 409
 
 
+def test_ultimo_sorteio_do_bloco_agenda_o_carrossel_sozinho(cliente, auth):
+    event_id, _participantes, unidades = montar_evento(participantes=5, quantidade_premio=2)
+    configurar_evento(event_id, autocadastro_ativo=False, duracao_animacao_ms=2000, carrossel_segundos=6)
+    bloco_id = cliente.post(_api(event_id, "/blocos/distribuir"), json={"capacidade": 2}, headers=auth).json()["blocos"][0]["id"]
+    cliente.post(_api(event_id, f"/blocos/{bloco_id}/iniciar"), headers=auth)
+
+    def sortear(i: int) -> None:
+        with session_scope() as db:  # a revelacao anterior ja terminou
+            ds = db.get(DisplayState, event_id)
+            if ds is not None and ds.revelar_em is not None:
+                ds.revelar_em = utcnow() - timedelta(seconds=1)
+        resposta = cliente.post(
+            _api(event_id, "/sorteio"),
+            json={"prize_unit_id": unidades[i], "idempotency_key": f"fim-bloco-{i}"},
+            headers=auth,
+        )
+        assert resposta.status_code == 200, resposta.text
+
+    # Sorteio do meio do bloco: nada agendado.
+    sortear(0)
+    assert _telao(cliente, event_id)["carrossel_agendado_em"] is None
+
+    # Ultimo premio: a revelacao segue normal e o carrossel fica agendado para depois.
+    sortear(1)
+    estado = _telao(cliente, event_id)
+    assert estado["estado"] == "sorteando"
+    assert estado["carrossel_agendado_em"] is not None
+    with session_scope() as db:
+        ds = db.get(DisplayState, event_id)
+        assert (ds.carrossel_desde - ds.revelar_em).total_seconds() == pytest.approx(carrossel.PAUSA_APOS_REVELACAO_S)
+        # Revelacao e pausa terminadas: o telao passa sozinho ao carrossel.
+        ds.revelar_em = utcnow() - timedelta(seconds=10)
+        ds.carrossel_desde = utcnow() - timedelta(seconds=1)
+    estado = _telao(cliente, event_id)
+    assert estado["estado"] == "carrossel_ganhadores" and estado["carrossel"]["total"] == 2
+
+    # Finalizar depois nao recomeca a apresentacao que ja esta no telao.
+    with session_scope() as db:
+        desde = db.get(DisplayState, event_id).carrossel_desde
+    assert cliente.post(_api(event_id, f"/blocos/{bloco_id}/finalizar"), json={}, headers=auth).status_code == 200
+    with session_scope() as db:
+        assert db.get(DisplayState, event_id).carrossel_desde == desde
+    assert _telao(cliente, event_id)["estado"] == "carrossel_ganhadores"
+
+
+def test_tema_claro_espera_a_revelacao_dos_rolos_antes_do_carrossel(cliente, auth):
+    event_id, _participantes, unidades = montar_evento(participantes=3, quantidade_premio=1)
+    configurar_evento(event_id, autocadastro_ativo=False, duracao_animacao_ms=2000, tema_telao="mallory_claro")
+    bloco_id = cliente.post(_api(event_id, "/blocos/distribuir"), json={"capacidade": 1}, headers=auth).json()["blocos"][0]["id"]
+    cliente.post(_api(event_id, f"/blocos/{bloco_id}/iniciar"), headers=auth)
+    resposta = cliente.post(
+        _api(event_id, "/sorteio"), json={"prize_unit_id": unidades[0], "idempotency_key": "claro-fim"}, headers=auth
+    )
+    assert resposta.status_code == 200, resposta.text
+    with session_scope() as db:
+        ds = db.get(DisplayState, event_id)
+        esperado = carrossel.PAUSA_APOS_REVELACAO_S + carrossel.EXTRA_REVELACAO_TEMA_CLARO_S
+        assert (ds.carrossel_desde - ds.revelar_em).total_seconds() == pytest.approx(esperado)
+
+
 def test_fim_de_bloco_durante_a_animacao_nao_corta_a_revelacao(cliente, auth):
     event_id, bloco_id = _bloco_com_ganhadores(cliente, auth, 2, finalizar=False)
     configurar_evento(event_id, autocadastro_ativo=False, duracao_animacao_ms=60_000)
