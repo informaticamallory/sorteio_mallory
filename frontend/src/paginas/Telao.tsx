@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useParams } from 'react-router-dom'
 import { usePosicaoCarrossel } from '../carrossel'
-import AnuncioGanhador, { FundoFestivo } from '../componentes/AnuncioGanhador'
+import AnuncioGanhador, { AVISO_IMAGEM_ILUSTRATIVA, FundoFestivo } from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
 import { audioLiberado, liberarAudio, somRufar, somVitoria } from '../som'
@@ -208,8 +208,10 @@ function Aguardando({ estado }: { estado: TelaoEstado }) {
 }
 
 function ApresentacaoPremio({ estado }: { estado: TelaoEstado }) {
+  const [imagemQuebrada, setImagemQuebrada] = useState<string | null>(null)
   if (!estado.premio) return null
   const { premio } = estado
+  const comImagem = !!premio.imagem_url && imagemQuebrada !== premio.imagem_url
   return (
     <div className="grid w-full max-w-6xl animate-sobe-suave items-center gap-8 lg:grid-cols-2">
       <div className="mx-auto w-full max-w-md overflow-hidden rounded-lg border-2 borda-ouro p-3">
@@ -217,8 +219,12 @@ function ApresentacaoPremio({ estado }: { estado: TelaoEstado }) {
           url={premio.imagem_url}
           nome={premio.nome}
           grande
+          aoFalhar={setImagemQuebrada}
           className="h-64 w-full rounded-lg sm:h-80 lg:h-96"
         />
+        {comImagem && (
+          <p className="mt-2 text-center text-sm italic opacity-70 sm:text-base">{AVISO_IMAGEM_ILUSTRATIVA}</p>
+        )}
       </div>
       <div className="text-center lg:text-left">
         <p className="text-lg uppercase tracking-[0.12em] opacity-70 sm:text-xl">Próximo prêmio</p>
@@ -555,6 +561,9 @@ function Encerramento({ estado }: { estado: TelaoEstado }) {
               </div>
             ))}
           </div>
+          {galeria.some((item) => item.premio_imagem_url) && (
+            <p className="mb-3 text-center text-sm italic opacity-70">Imagens meramente ilustrativas</p>
+          )}
           {galeria.length > 3 && (
             <div className="flex justify-center gap-3">
               <button

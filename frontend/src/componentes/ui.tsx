@@ -84,11 +84,14 @@ export function ImagemPremio({
   nome,
   className = '',
   grande = false,
+  aoFalhar,
 }: {
   url: string | null
   nome: string
   className?: string
   grande?: boolean
+  /** Avisado quando a imagem não carrega (ex.: telão esconde "imagem ilustrativa"). */
+  aoFalhar?: (url: string) => void
 }) {
   // Imagem que não carrega (arquivo apagado, link quebrado): mostra o ícone.
   const [falhou, setFalhou] = useState<string | null>(null)
@@ -98,7 +101,10 @@ export function ImagemPremio({
         src={url}
         alt={`Imagem do prêmio ${nome}`}
         loading="lazy"
-        onError={() => setFalhou(url)}
+        onError={() => {
+          setFalhou(url)
+          aoFalhar?.(url)
+        }}
         className={`object-contain ${className}`}
       />
     )

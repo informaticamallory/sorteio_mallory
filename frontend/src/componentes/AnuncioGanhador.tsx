@@ -1,6 +1,9 @@
 import { useState, type CSSProperties, type ReactNode } from 'react'
 import { ImagemPremio } from './ui'
 
+/** Aviso exibido abaixo das imagens dos prêmios no telão. */
+export const AVISO_IMAGEM_ILUSTRATIVA = 'Imagem meramente ilustrativa'
+
 /*
  * Anúncio do ganhador no telão: faixa "GANHADOR(A) DO SORTEIO", cartão do
  * prêmio à esquerda e cartão do ganhador (foto, nome e número sorteado) à
@@ -59,6 +62,9 @@ export default function AnuncioGanhador({
       ? null
       : String(dados.numero).padStart(4, '0')
   const numeroLongo = (numero?.length ?? 0) > 8
+  // "Imagem meramente ilustrativa" só aparece com uma imagem de verdade na tela.
+  const [imagemQuebrada, setImagemQuebrada] = useState<string | null>(null)
+  const comImagem = !!dados.premioImagemUrl && imagemQuebrada !== dados.premioImagemUrl
 
   return (
     <div className={`relative z-10 w-full max-w-[1500px] ${reduzir ? '' : 'animate-entra-vencedor'}`}>
@@ -69,14 +75,23 @@ export default function AnuncioGanhador({
         {/* ---------------------------------------------- prêmio */}
         <div className="flex rounded-[2rem] p-[3px]" style={{ background: GRADIENTE_OURO, boxShadow: BRILHO }}>
           <div className="flex w-full flex-col overflow-hidden rounded-[calc(2rem-3px)] bg-white">
-            {/* A imagem ocupa toda a área livre do cartão e se ajusta à tela, sem distorcer. */}
+            {/* A imagem ocupa toda a área livre do cartão e se ajusta à tela, sem distorcer.
+                Com imagem, sobra uma faixa embaixo para o aviso de que ela é ilustrativa. */}
             <div className="relative min-h-[26vh] flex-1">
               <ImagemPremio
                 url={dados.premioImagemUrl}
                 nome={dados.premioNome}
                 grande
-                className="absolute inset-[2vh] h-[calc(100%-4vh)] w-[calc(100%-4vh)] rounded-xl text-slate-400"
+                aoFalhar={setImagemQuebrada}
+                className={`absolute left-[2vh] top-[2vh] w-[calc(100%-4vh)] rounded-xl text-slate-400 ${
+                  comImagem ? 'h-[calc(100%-2vh-max(4vh,2.2rem))]' : 'h-[calc(100%-4vh)]'
+                }`}
               />
+              {comImagem && (
+                <p className="absolute inset-x-0 bottom-[0.8vh] text-center text-[clamp(0.8rem,1vw,1.1rem)] italic text-slate-500">
+                  {AVISO_IMAGEM_ILUSTRATIVA}
+                </p>
+              )}
               {dados.detalhePremio && (
                 <span
                   className="absolute right-4 top-4 rounded-full px-3 py-1 text-sm font-bold"
