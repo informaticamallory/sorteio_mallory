@@ -134,13 +134,64 @@ export default function PainelLayout() {
             Evento de demonstração — dados fictícios, separados dos eventos reais
           </div>
         ) : evento.evento_teste ? (
-          <div className="border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-center text-xs text-slate-700 sm:px-6">
-            Evento de teste — não aparece no portal do colaborador nem manda avisos para o celular
-          </div>
+          <FaixaEventoTeste eventoId={evento.id} podeRecomecar={pode('gerenciar_eventos')} />
         ) : undefined
       }
     >
       <Outlet context={{ evento, resumo, recarregarEvento, recarregarResumo }} />
     </Casca>
+  )
+}
+
+/** Faixa do evento de teste, com "Recomeçar teste" (só o admin). */
+function FaixaEventoTeste({ eventoId, podeRecomecar }: { eventoId: number; podeRecomecar: boolean }) {
+  const [confirmando, setConfirmando] = useState(false)
+  const [trabalhando, setTrabalhando] = useState(false)
+  const [erro, setErro] = useState('')
+
+  async function recomecar() {
+    setTrabalhando(true)
+    setErro('')
+    try {
+      await requisitar(`/api/events/${eventoId}/recomecar-teste`, { metodo: 'POST' })
+      // Recarrega tudo (blocos, sorteio, telão) já zerado.
+      window.location.reload()
+    } catch (e) {
+      setErro(e instanceof Error ? e.message : 'Falha ao recomeçar o teste')
+      setTrabalhando(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 border-b border-slate-200 bg-slate-100 px-4 py-1.5 text-center text-xs text-slate-700 sm:px-6">
+      <span>Evento de teste — não aparece no portal do colaborador nem manda avisos para o celular</span>
+      {podeRecomecar &&
+        (confirmando ? (
+          <span className="flex items-center gap-2">
+            <span className="font-semibold text-rose-700">Apagar todos os sorteios e entregas deste teste?</span>
+            <button
+              type="button"
+              className="rounded-md bg-rose-600 px-2 py-0.5 font-semibold text-white hover:bg-rose-700"
+              disabled={trabalhando}
+              onClick={() => void recomecar()}
+            >
+              {trabalhando ? 'Recomeçando...' : 'Sim, recomeçar'}
+            </button>
+            <button type="button" className="underline" disabled={trabalhando} onClick={() => setConfirmando(false)}>
+              Cancelar
+            </button>
+          </span>
+        ) : (
+          <button
+            type="button"
+            className="inline-flex items-center gap-1 font-semibold text-marca-700 hover:underline"
+            onClick={() => setConfirmando(true)}
+          >
+            <Icone nome="repetir" className="h-3.5 w-3.5" />
+            Recomeçar teste
+          </button>
+        ))}
+      {erro && <span className="font-semibold text-rose-700">{erro}</span>}
+    </div>
   )
 }

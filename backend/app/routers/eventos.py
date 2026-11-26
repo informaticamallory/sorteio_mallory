@@ -38,6 +38,8 @@ from ..schemas import (
 )
 from ..security import novo_token_telao
 from ..services.elegibilidade import participantes_elegiveis, resumo_regras
+from ..services import ambiente_teste
+from ..services.erros import RegraDeNegocio
 from ..services.telao import notificar_atualizacao
 
 router = APIRouter(prefix="/api/events", tags=["eventos"])
@@ -147,6 +149,44 @@ def excluir(
     db.delete(evento)
     db.commit()
     return Response(status_code=status.HTTP_204_NO_CONTENT)
+
+
+@router.post("/{event_id}/ambiente-teste", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
+def criar_ambiente_teste(
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(GERENCIAR),
+) -> Event:
+    """Cria uma copia de teste deste evento (so o admin). O evento real nao muda.
+
+    Ver services/ambiente_teste.py: nomes trocados, presenca confirmada, sem
+    sorteios, contas nem dados de identificacao; marcada como evento de teste.
+    """
+    try:
+        copia = ambiente_teste.criar_copia(db, evento, user)
+    except RegraDeNegocio as exc:
+        db.rollback()
+        raise HTTPException(exc.status_code, exc.mensagem) from exc
+    db.commit()
+    db.refresh(copia)
+    return copia
+
+
+@router.post("/{event_id}/recomecar-teste")
+def recomecar_teste(
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(GERENCIAR),
+) -> dict:
+    """Zera os sorteios de um EVENTO DE TESTE (so o admin) para ensaiar de novo."""
+    try:
+        resultado = ambiente_teste.recomecar(db, evento, user)
+    except RegraDeNegocio as exc:
+        db.rollback()
+        raise HTTPException(exc.status_code, exc.mensagem) from exc
+    db.commit()
+    notificar_atualizacao(db, evento)
+    return resultado
 
 
 @router.patch("/{event_id}", response_model=EventoOut)

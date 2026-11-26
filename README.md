@@ -379,6 +379,26 @@ texto "Sorteios Mallory".
 > consegue confirmar presenças e consultar nome, matrícula, número e prêmios. Mantenha o
 > sistema só na rede do evento.
 
+### Ambiente de teste
+
+Para ensaiar os sorteios sem tocar no evento real, o admin usa **Eventos → Ambiente de teste**.
+O sistema cria "TESTE — <nome do evento>", marcado como **evento de teste**:
+
+- copia configuração, cores, tema do telão, regras e modo do sorteio, prêmios (imagens e
+  quantidades) e blocos com a mesma distribuição — tudo zerado (unidades disponíveis, blocos
+  planejados);
+- copia os participantes com o **mesmo RE/matrícula e setor**, mas com o **nome trocado por
+  "Participante 001…"** (LGPD) e com a presença já confirmada;
+- **não copia** sorteios, entregas, notificações, contas, códigos de CPF/nascimento, pulseiras
+  nem fotos dos colaboradores.
+
+Evento de teste não aparece no portal do colaborador, não manda aviso nem push ao celular e sai
+da lista de cadastro pelo QR Code. Dentro dele, a faixa cinza tem **Recomeçar teste**: apaga os
+sorteios e entregas do teste e devolve as unidades aos blocos, para ensaiar de novo. Quando não
+precisar mais, exclua o evento de teste em Eventos (vale mesmo com sorteios, com o nome digitado e
+a confirmação de que os sorteios vão junto; a auditoria é mantida). Evento real com sorteios
+continua sem poder ser apagado.
+
 ### Portal do Colaborador
 
 Opcional (desligado por padrão); o caminho principal continua sendo o check-in na Recepção.

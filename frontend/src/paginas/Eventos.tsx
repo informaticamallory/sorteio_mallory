@@ -24,6 +24,8 @@ export default function Eventos() {
   // Evento de teste: confirmação de que os sorteios, entregas e notificações vão junto.
   const [apagarSorteios, setApagarSorteios] = useState(false)
   const [aviso, setAviso] = useState('')
+  // Ambiente de teste: cópia do evento para ensaiar os sorteios.
+  const [copiando, setCopiando] = useState<Evento | null>(null)
 
   useEffect(() => {
     setConfirmacao('')
@@ -70,6 +72,22 @@ export default function Eventos() {
     } catch (erroExcluir) {
       setExcluindo(null)
       setErro(erroExcluir instanceof Error ? erroExcluir.message : 'Falha ao excluir o evento')
+    } finally {
+      setSalvando(false)
+    }
+  }
+
+  async function criarAmbienteTeste() {
+    if (!copiando) return
+    setSalvando(true)
+    setErro('')
+    try {
+      const copia = await requisitar<Evento>(`/api/events/${copiando.id}/ambiente-teste`, { metodo: 'POST' })
+      setCopiando(null)
+      navegar(`/eventos/${copia.id}`)
+    } catch (erroCopia) {
+      setCopiando(null)
+      setErro(erroCopia instanceof Error ? erroCopia.message : 'Falha ao criar o ambiente de teste')
     } finally {
       setSalvando(false)
     }
@@ -205,6 +223,17 @@ export default function Eventos() {
                             <span className="hidden sm:inline">Editar</span>
                           </button>
                         )}
+                        {pode('gerenciar_eventos') && !evento.evento_teste && (
+                          <button
+                            type="button"
+                            className="btn-sutil text-marca-700"
+                            title="Cria uma cópia deste evento para ensaiar os sorteios (o evento real não muda)"
+                            onClick={() => setCopiando(evento)}
+                          >
+                            <Icone nome="copiar" />
+                            <span className="hidden lg:inline">Ambiente de teste</span>
+                          </button>
+                        )}
                         {/* A rota índice do evento abre a primeira tela do perfil. */}
                         <Link to={`/eventos/${evento.id}`} className="btn-neutro">
                           Abrir
@@ -285,6 +314,48 @@ export default function Eventos() {
               </button>
             </div>
           </form>
+        )}
+      </Modal>
+
+      <Modal titulo="Criar ambiente de teste" aberto={copiando !== null} aoFechar={() => setCopiando(null)}>
+        {copiando && (
+          <div className="space-y-4">
+            <p className="text-sm text-slate-600">
+              Cria o evento <strong>TESTE — {copiando.nome}</strong> para ensaiar os sorteios. O evento real não é
+              alterado.
+            </p>
+            <ul className="space-y-2 text-sm text-slate-700">
+              <li className="flex gap-2">
+                <Icone nome="check" className="mt-0.5 h-4 w-4 shrink-0 text-marca-600" />
+                Configuração, cores, tema do telão, regras e modo do sorteio
+              </li>
+              <li className="flex gap-2">
+                <Icone nome="check" className="mt-0.5 h-4 w-4 shrink-0 text-marca-600" />
+                Prêmios (imagens e quantidades) e blocos com a mesma distribuição, tudo zerado
+              </li>
+              <li className="flex gap-2">
+                <Icone nome="check" className="mt-0.5 h-4 w-4 shrink-0 text-marca-600" />
+                Participantes com o mesmo RE e setor, com o nome trocado por &quot;Participante 001…&quot; e presença já
+                confirmada
+              </li>
+              <li className="flex gap-2 text-slate-500">
+                <Icone nome="fechar" className="mt-0.5 h-4 w-4 shrink-0" />
+                Não copia sorteios, entregas, contas, CPF/nascimento, pulseiras nem fotos dos colaboradores
+              </li>
+            </ul>
+            <p className="rounded-lg bg-slate-50 p-3 text-xs text-slate-600">
+              O evento de teste não aparece no portal do colaborador e não manda avisos para o celular. Lá dentro, use
+              &quot;Recomeçar teste&quot; para zerar e ensaiar de novo; quando não precisar mais, exclua-o aqui.
+            </p>
+            <div className="flex justify-end gap-2 pt-1">
+              <button type="button" className="btn-neutro" onClick={() => setCopiando(null)}>
+                Cancelar
+              </button>
+              <button type="button" className="btn-primario" disabled={salvando} onClick={() => void criarAmbienteTeste()}>
+                {salvando ? 'Criando...' : 'Criar ambiente de teste'}
+              </button>
+            </div>
+          </div>
         )}
       </Modal>
 

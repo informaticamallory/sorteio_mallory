@@ -38,7 +38,9 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("POST", "/api/events"): {A},
     ("GET", E): EQUIPE,
     ("PATCH", E): {A, O},
-    ("DELETE", E): {A},  # apagar o evento: so o admin (e so sem sorteio)
+    ("DELETE", E): {A},  # apagar o evento: so o admin (com sorteio, so evento de teste)
+    ("POST", f"{E}/ambiente-teste"): {A},  # copia de teste do evento: so o admin
+    ("POST", f"{E}/recomecar-teste"): {A},  # zerar os sorteios do evento de teste: so o admin
     ("POST", f"{E}/telao/novo-token"): {A, O},
     ("GET", f"{E}/regras"): EQUIPE,
     ("GET", f"{E}/regras/resumo"): EQUIPE,
