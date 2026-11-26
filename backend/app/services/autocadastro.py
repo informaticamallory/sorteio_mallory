@@ -150,16 +150,26 @@ def _login_livre(db: Session, base: str) -> str:
     return candidato
 
 
+def conta_da_equipe(conta: User | None) -> bool:
+    """Conta de equipe (qualquer perfil que nao seja COLABORADOR)."""
+    return conta is not None and conta.papel != Papel.COLABORADOR.value
+
+
 def conta_para(db: Session, evento: Event, participante: Participant) -> tuple[User | None, str]:
     """Conta existente a reaproveitar (ou None) e o login que o colaborador usara.
 
     O login padrao e a matricula. A matricula e unica por pessoa (decisao do
     cliente, 26/11/2026; PJ recebem numero proprio no cadastro de participantes),
-    entao uma conta de COLABORADOR com esse login e sempre a mesma pessoa (outro
-    evento, ou cadastro liberado pelo check-in) e e reaproveitada, mesmo com o
-    nome escrito de outro jeito. Nunca se reaproveita conta da equipe (a senha
-    viraria os 5 digitos do CPF) nem conta ja ligada a outro participante deste
-    evento: nesses casos o colaborador ganha um login proprio.
+    entao a conta ativa com esse login e sempre a mesma pessoa (outro evento,
+    cadastro liberado pelo check-in, ou alguem da equipe que usa a matricula
+    como login) e e reaproveitada, mesmo com o nome escrito de outro jeito.
+
+    Conta da EQUIPE (ver conta_da_equipe): o cartao fica nela, mas a senha NAO
+    muda e o cadastro nao abre sessao. Quem conhece nascimento e CPF so liga o
+    cadastro a conta; entrar continua exigindo a senha da equipe.
+
+    Conta ja ligada a outro participante deste evento, ou conta da equipe
+    desativada: o colaborador ganha um login proprio ("<matricula>.e<evento>").
     """
     base = participante.matricula.strip().lower()
     existente = db.scalar(select(User).where(User.usuario == base))
@@ -170,6 +180,8 @@ def conta_para(db: Session, evento: Event, participante: Participant) -> tuple[U
             Participant.event_id == evento.id, Participant.usuario_id == existente.id
         )
     )
+    if conta_da_equipe(existente) and (vinculada_aqui is None and existente.ativo):
+        return existente, existente.usuario
     mesma_pessoa = existente.papel == Papel.COLABORADOR.value and vinculada_aqui is None
     if mesma_pessoa:
         if not existente.ativo:
@@ -242,6 +254,9 @@ def concluir(
         )
         db.add(conta)
         db.flush()
+    elif conta_da_equipe(conta):
+        # Conta da equipe: so liga o cartao. Senha, nome e sessoes nao mudam.
+        pass
     else:
         # O nome da planilha mais recente passa a valer para a conta.
         conta.nome = participante.nome
@@ -274,7 +289,7 @@ def concluir(
         {
             "participante_id": participante.id,
             "usuario_id": conta.id,
-            "conta": "criada" if conta_nova else "existente",
+            "conta": "criada" if conta_nova else ("equipe" if conta_da_equipe(conta) else "existente"),
             "foto": "nova" if foto_url else ("removida" if remover_foto and foto_anterior else "sem_alteracao"),
             "origem": "portal_qrcode",
             "ip": ip,

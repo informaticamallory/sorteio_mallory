@@ -103,7 +103,7 @@ def identificar(
     cinco = identificacao.cinco_digitos_validos(dados.cpf5)
     try:
         participante = servico.identificar(db, evento, dados.matricula, nascimento, cinco, _ip(request))
-        _conta, login = servico.conta_para(db, evento, participante)
+        conta, login = servico.conta_para(db, evento, participante)
     except RegraDeNegocio as exc:
         db.rollback()
         raise _erro(exc) from exc
@@ -113,6 +113,7 @@ def identificar(
         matricula=participante.matricula,
         foto_url=participante.foto_url,
         login=login,
+        conta_equipe=servico.conta_da_equipe(conta),
     )
 
 
@@ -128,7 +129,11 @@ def concluir(
     foto: UploadFile | None = File(None),
     db: Session = Depends(get_db),
 ) -> AutocadastroOut:
-    """Passo 2: foto opcional -> conta (senha = 5 primeiros digitos do CPF). Nao confirma presenca."""
+    """Passo 2: foto opcional -> conta (senha = 5 primeiros digitos do CPF). Nao confirma presenca.
+
+    Se a matricula for o login de uma conta da equipe, o cartao fica nela sem
+    trocar a senha e sem abrir sessao (access_token e usuario vem vazios).
+    """
     evento = _evento(db, event_id)
     lido = ler_passe_cadastro(passe)
     if lido is None or lido[0] != evento.id:
@@ -171,6 +176,15 @@ def concluir(
     usuario = resultado.usuario
     db.refresh(usuario)
     db.refresh(resultado.participante)
+    if servico.conta_da_equipe(usuario):
+        # Conta da equipe: nada de sessao nem dados da conta. A pessoa entra
+        # depois com o login e a senha que ja usa.
+        return AutocadastroOut(
+            login=usuario.usuario,
+            conta_nova=False,
+            conta_equipe=True,
+            cartao=cartao(evento, resultado.participante),
+        )
     return AutocadastroOut(
         access_token=criar_token(usuario.id, usuario.sessao_versao),
         usuario=usuario_out(usuario),

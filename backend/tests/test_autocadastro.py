@@ -58,7 +58,8 @@ def test_dados_corretos_identificam_e_devolvem_so_o_necessario(cliente):
     resposta = _tentar(cliente, event_id, "00001", NASCIMENTO.isoformat(), cpf[:5])
     assert resposta.status_code == 200, resposta.text
     corpo = resposta.json()
-    assert set(corpo) == {"passe", "nome", "matricula", "foto_url", "login"}
+    assert set(corpo) == {"passe", "nome", "matricula", "foto_url", "login", "conta_equipe"}
+    assert corpo["conta_equipe"] is False
     assert corpo["nome"] == "Participante 1" and corpo["login"] == "00001"
     # Nem a data de nascimento nem o CPF voltam na resposta.
     assert "1990" not in resposta.text and cpf[:5] not in resposta.text
@@ -384,19 +385,49 @@ def test_conta_desativada_nao_e_reativada_pelo_autocadastro(cliente, auth):
 
 
 # ------------------------------------------------------------------ contas e concorrencia
-def test_login_igual_a_matricula_de_outra_pessoa_nao_e_tomado(cliente, auth):
+def test_conta_da_equipe_com_a_matricula_recebe_o_cartao_sem_trocar_a_senha(cliente, auth):
     event_id, participantes, _ = montar_evento(participantes=1)
     configurar_evento(event_id)
-    # Conta de equipe cujo login coincide com a matricula.
+    # Conta de equipe cujo login e a matricula (ex.: admin que usa a propria matricula).
+    equipe = conta("ADMIN", login="00001")
+    with session_scope() as db:
+        versao = db.get(User, equipe).sessao_versao
+
+    previa = identificar(cliente, event_id, "00001")
+    assert previa.status_code == 200 and previa.json()["login"] == "00001"
+    assert previa.json()["conta_equipe"] is True
+
+    resultado = autocadastrar(cliente, auth, event_id, participantes[0], "00001")
+    # Nada de sessao nem dados da conta da equipe para quem so sabe nascimento e CPF.
+    assert resultado["access_token"] is None and resultado["usuario"] is None
+    assert resultado["login"] == "00001" and resultado["conta_equipe"] is True
+    with session_scope() as db:
+        assert db.get(Participant, participantes[0]).usuario_id == equipe
+        conta_equipe = db.get(User, equipe)
+        assert conta_equipe.papel == "ADMIN" and conta_equipe.sessao_versao == versao
+        assert db.scalar(select(func.count(User.id)).where(User.papel == "COLABORADOR")) == 0
+        assert db.scalar(select(AuditLog).where(AuditLog.acao == "autocadastro_concluido")).detalhes["conta"] == "equipe"
+
+    # A senha continua a da equipe; os 5 digitos do CPF nao entram.
+    assert cliente.post(
+        "/api/auth/login", json={"usuario": "00001", "senha": senha_de(participantes[0])}
+    ).status_code == 401
+    entrada = cliente.post("/api/auth/login", json={"usuario": "00001", "senha": "senha-forte1"})
+    assert entrada.status_code == 200 and entrada.json()["usuario"]["tem_cartao"] is True
+    area = cliente.get("/api/minha-area", headers={"Authorization": f"Bearer {entrada.json()['access_token']}"})
+    assert [p["matricula"] for p in area.json()["participacoes"]] == ["00001"]
+
+
+def test_conta_da_equipe_desativada_nao_recebe_o_cartao(cliente, auth):
+    event_id, participantes, _ = montar_evento(participantes=1)
+    configurar_evento(event_id)
     equipe = conta("RECEPCAO", login="00001")
+    with session_scope() as db:
+        db.get(User, equipe).ativo = False
     resultado = autocadastrar(cliente, auth, event_id, participantes[0], "00001")
 
-    assert resultado["login"] == f"00001.e{event_id}"
-    assert resultado["usuario"]["id"] != equipe
-    with session_scope() as db:
-        assert db.get(User, equipe).papel == "RECEPCAO"
-    # "1" nao leva a conta da equipe.
-    assert cliente.post("/api/auth/login", json={"usuario": "1", "senha": "senha-forte1"}).status_code == 401
+    assert resultado["login"] == f"00001.e{event_id}" and resultado["conta_equipe"] is False
+    assert resultado["usuario"]["id"] != equipe and resultado["access_token"]
 
 
 def test_mesma_pessoa_em_outro_evento_reaproveita_a_conta(cliente, auth):

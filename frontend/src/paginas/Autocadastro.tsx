@@ -269,7 +269,8 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
         },
         foto ? { foto: { conteudo: foto.conteudo, nome: foto.nome } } : {},
       )
-      adotarSessao(resultado.access_token, resultado.usuario)
+      // Conta da equipe: o cadastro não abre sessão (entra depois com a senha da equipe).
+      if (resultado.access_token && resultado.usuario) adotarSessao(resultado.access_token, resultado.usuario)
       setConcluido(resultado)
       setNascimento('')
       setCpf5('')
@@ -448,7 +449,7 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
               <p className="text-center text-xs text-mallory-texto">Formatos: JPG ou PNG (até 5 MB)</p>
             </div>
 
-            <AvisoSenha login={identificacao.login} />
+            <AvisoSenha login={identificacao.login} equipe={identificacao.conta_equipe} />
 
             <div className="space-y-3">
               <button className="rec-btn-primario w-full uppercase tracking-wide" disabled={enviando}>
@@ -482,11 +483,18 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
             <BilheteSorte numero={concluido.cartao.numero_sorteio} matricula={concluido.cartao.matricula_da_sorte} />
             <CartaoPessoa cartao={concluido.cartao} />
             <SituacaoCheckin cartao={concluido.cartao} />
-            <button type="button" className="rec-btn-primario w-full" onClick={() => navegar('/minha-area')}>
-              <Icone nome="inicio" className="h-5 w-5" />
-              Ver meu cartão da sorte
-            </button>
-            <AvisoSenha login={concluido.login} />
+            {concluido.conta_equipe ? (
+              <button type="button" className="rec-btn-primario w-full" onClick={() => navegar('/login')}>
+                <Icone nome="inicio" className="h-5 w-5" />
+                Entrar para ver meu cartão
+              </button>
+            ) : (
+              <button type="button" className="rec-btn-primario w-full" onClick={() => navegar('/minha-area')}>
+                <Icone nome="inicio" className="h-5 w-5" />
+                Ver meu cartão da sorte
+              </button>
+            )}
+            <AvisoSenha login={concluido.login} equipe={concluido.conta_equipe} />
           </div>
         )}
       </Cartao>
@@ -494,8 +502,29 @@ function Fluxo({ evento }: { evento: EventoAutocadastro }) {
   )
 }
 
-/** Alerta de como o colaborador entra depois (senha = 5 primeiros dígitos do CPF). */
-export function AvisoSenha({ login }: { login: string }) {
+/**
+ * Alerta de como o colaborador entra depois (senha = 5 primeiros dígitos do CPF).
+ * Com `equipe`, a matrícula é o login de uma conta da equipe: o cartão fica nela
+ * e a senha continua a mesma de sempre.
+ */
+export function AvisoSenha({ login, equipe = false }: { login: string; equipe?: boolean }) {
+  if (equipe) {
+    return (
+      <div role="note" className="flex gap-3 rounded-xl border-2 border-mallory-laranja bg-mallory-claro p-4">
+        <Icone nome="senha" className="mt-0.5 h-6 w-6 shrink-0 text-mallory-acao" />
+        <div className="text-sm text-mallory-preto">
+          <p className="text-base font-bold">Você já tem uma conta da equipe</p>
+          <p className="mt-1">
+            Seu cartão da sorte fica nela. A senha <strong>não muda</strong>.
+          </p>
+          <p className="mt-1">
+            Para ver seu cartão, toque em <strong>Entrar</strong> e use o login{' '}
+            <strong className="font-mono">{login}</strong> com a senha que você já usa.
+          </p>
+        </div>
+      </div>
+    )
+  }
   return (
     <div role="note" className="flex gap-3 rounded-xl border-2 border-mallory-laranja bg-mallory-claro p-4">
       <Icone nome="senha" className="mt-0.5 h-6 w-6 shrink-0 text-mallory-acao" />

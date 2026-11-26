@@ -833,6 +833,8 @@ class IdentificacaoOut(BaseModel):
     matricula: str
     foto_url: str | None
     login: str
+    # A matricula e o login de uma conta da equipe: entra com a senha que ja usa.
+    conta_equipe: bool = False
 
 
 class CartaoSorteOut(BaseModel):
@@ -852,11 +854,13 @@ class CartaoSorteOut(BaseModel):
 
 
 class AutocadastroOut(BaseModel):
-    access_token: str
+    # Vazios quando o cartao foi ligado a uma conta da equipe (sem sessao).
+    access_token: str | None = None
     token_type: str = "bearer"
-    usuario: UsuarioOut
+    usuario: UsuarioOut | None = None
     login: str
     conta_nova: bool
+    conta_equipe: bool = False
     cartao: CartaoSorteOut
 
 

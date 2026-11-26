@@ -275,6 +275,8 @@ export interface Identificacao {
   matricula: string
   foto_url: string | null
   login: string
+  /** A matrícula é o login de uma conta da equipe: entra com a senha que já usa. */
+  conta_equipe?: boolean
 }
 
 export interface CartaoSorte {
@@ -292,10 +294,12 @@ export interface CartaoSorte {
 }
 
 export interface AutocadastroConcluido {
-  access_token: string
-  usuario: Usuario
+  /** Vazios quando o cartão foi ligado a uma conta da equipe (sem sessão). */
+  access_token: string | null
+  usuario: Usuario | null
   login: string
   conta_nova: boolean
+  conta_equipe?: boolean
   cartao: CartaoSorte
 }
 
