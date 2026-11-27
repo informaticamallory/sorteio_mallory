@@ -147,7 +147,7 @@ def _foto_v1(caminho: Path) -> dict:
             "modo_sorteio", "matricula_faixa_inicio", "matricula_faixa_fim",
             "recepcao_publica_ativa", "tema_telao",
             "claro_cor_fundo", "claro_cor_painel", "claro_cor_destaque", "claro_cor_texto",
-            "telao_subtitulo", "evento_teste",
+            "telao_subtitulo", "evento_teste", "som_sorteio",
         },
         "display_states": {
             "carrossel_bloco_id", "carrossel_indice", "carrossel_desde", "carrossel_duracao_s",

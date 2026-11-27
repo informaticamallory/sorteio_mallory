@@ -142,6 +142,7 @@ class Event(Base):
         CheckConstraint("capacidade_bloco_padrao >= 1", name="ck_events_capacidade_bloco_positiva"),
         CheckConstraint("carrossel_segundos >= 0.5", name="ck_events_carrossel_minimo"),
         CheckConstraint("tema_telao IN ('classico', 'mallory_claro')", name="ck_events_tema_telao"),
+        CheckConstraint("som_sorteio IN ('tambores', 'caca_niquel')", name="ck_events_som_sorteio"),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)
@@ -211,6 +212,8 @@ class Event(Base):
     # Texto ao lado da logo no telao claro (ex.: "Sorteio de aniversario de 52 anos").
     # Vazio: "Sorteios internos".
     telao_subtitulo: Mapped[str | None] = mapped_column(String(80), nullable=True)
+    # Som do sorteio no telao: "tambores" (rufar) ou "caca_niquel" (rolos, clac, moedas).
+    som_sorteio: Mapped[str] = mapped_column(String(20), default="tambores", server_default="tambores")
 
     # Evento de teste (marcado pelo admin): nao aparece no portal do colaborador
     # (aba, premios e notificacoes), nao manda aviso/push ao celular e nao entra

@@ -8,7 +8,7 @@ import AnuncioGanhador, {
 } from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
-import { audioLiberado, liberarAudio, somRufar } from '../som'
+import { audioLiberado, liberarAudio, somDoEvento, somRufar } from '../som'
 import type { TelaoEstado } from '../types'
 import TelaoClaro, { gradeResumo, Rolos, useFaseRevelacao, type FaseRevelacao } from './TelaoClaro'
 import { msRestantes, useTelao } from '../useTelao'
@@ -295,7 +295,8 @@ function Sorteando({
   duracaoRef.current = duracao
   useEffect(() => {
     if (!somAtivo) return
-    return somRufar(duracaoRef.current)
+    return somRufar(duracaoRef.current, somDoEvento(estado.evento?.som_sorteio))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [somAtivo, estado.revelar_em])
 
   return <PainelRolos estado={estado} valor={null} digitos={digitos} reduzir={reduzir} />

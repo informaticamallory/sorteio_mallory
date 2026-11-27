@@ -3,7 +3,7 @@ import { usePosicaoCarrossel } from '../carrossel'
 import { AVISO_IMAGEM_ILUSTRATIVA, ROTULO_MATRICULA_TELAO } from '../componentes/AnuncioGanhador'
 import Confete from '../componentes/Confete'
 import { ImagemPremio } from '../componentes/ui'
-import { somRufar, somVitoria } from '../som'
+import { somDoEvento, somParadaRolos, somRufar, somVitoria } from '../som'
 import type { SlideCarrossel, TelaoEstado } from '../types'
 import type { Conexao } from '../useTelao'
 
@@ -349,7 +349,8 @@ function Sorteando({ estado, reduzir, somAtivo }: { estado: TelaoEstado; reduzir
   // O rufar acompanha o horário de revelação (novas mensagens não o reiniciam).
   useEffect(() => {
     if (!somAtivo) return
-    return somRufar(restanteRef.current)
+    return somRufar(restanteRef.current, somDoEvento(estado.evento?.som_sorteio))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [somAtivo, estado.revelar_em])
 
   return (
@@ -477,13 +478,21 @@ export function useFaseRevelacao(estado: TelaoEstado, reduzir: boolean, somAtivo
     return () => window.clearTimeout(id)
   }, [fase, fimParada, fimNome])
 
+  const som = somDoEvento(estado.evento?.som_sorteio)
+  // Caça-níquel: um "clac" a cada rolo que para (no mesmo ritmo da animação).
+  useEffect(() => {
+    if (!somAtivo || fase !== 'parando' || !numero) return
+    return somParadaRolos(digitos, PARADA_POR_ROLO_MS, inicioRef.current.decorrido, som)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [somAtivo, fase === 'parando'])
+
   const tocado = useRef(false)
   useEffect(() => {
     if (somAtivo && !tocado.current && fase !== 'parando') {
       tocado.current = true
-      somVitoria()
+      somVitoria(som)
     }
-  }, [somAtivo, fase])
+  }, [somAtivo, fase, som])
 
   return { fase, numero, digitos, atrasoMs: Math.max(0, inicioRef.current.decorrido) }
 }

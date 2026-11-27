@@ -202,6 +202,8 @@ class EventoConfigIn(BaseModel):
     telao_subtitulo: str | None = Field(default=None, max_length=80)
     # Evento de teste: oculto no portal do colaborador. So o admin altera.
     evento_teste: bool | None = None
+    # Som do sorteio no telao.
+    som_sorteio: Literal["tambores", "caca_niquel"] | None = None
 
     @field_validator("telao_subtitulo")
     @classmethod
@@ -306,6 +308,7 @@ class EventoOut(ORMModel):
     claro_cor_texto: str = "#606060"
     telao_subtitulo: str | None = None
     evento_teste: bool = False
+    som_sorteio: str = "tambores"
     demo: bool
     criado_em: datetime
 

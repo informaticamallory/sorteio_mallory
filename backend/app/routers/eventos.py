@@ -207,8 +207,8 @@ def atualizar_config(
     user: User = Depends(CONFIGURAR),
 ) -> Event:
     alterado = dados.model_dump(exclude_unset=True)
-    # Tema, cores do claro e marca de teste sao obrigatorios: null nao muda nada.
-    for campo in ("tema_telao", "evento_teste", *CAMPOS_COR_CLARO):
+    # Tema, som, cores do claro e marca de teste sao obrigatorios: null nao muda nada.
+    for campo in ("tema_telao", "som_sorteio", "evento_teste", *CAMPOS_COR_CLARO):
         if campo in alterado and alterado[campo] is None:
             del alterado[campo]
     # Marcar/desmarcar evento de teste (some do portal do colaborador): so o admin.

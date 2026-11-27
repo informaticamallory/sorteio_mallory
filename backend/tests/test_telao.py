@@ -72,6 +72,20 @@ def test_telao_nunca_recebe_matricula_nem_lista_completa(cliente, auth):
     assert set(estado["ganhador"].keys()) == {"nome", "setor", "foto_url", "numero_sorteio"}
 
 
+def test_som_do_sorteio_e_escolhido_por_evento(cliente, auth):
+    event_id, _, _ = montar_evento(participantes=2)
+    token = _token_telao(event_id)
+    # Padrao: os tambores de sempre.
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["som_sorteio"] == "tambores"
+
+    assert cliente.patch(f"/api/events/{event_id}", json={"som_sorteio": "sirene"}, headers=auth).status_code == 422
+    resposta = cliente.patch(f"/api/events/{event_id}", json={"som_sorteio": "caca_niquel"}, headers=auth)
+    assert resposta.status_code == 200 and resposta.json()["som_sorteio"] == "caca_niquel"
+    # null nao apaga a escolha (a coluna e obrigatoria).
+    assert cliente.patch(f"/api/events/{event_id}", json={"som_sorteio": None}, headers=auth).json()["som_sorteio"] == "caca_niquel"
+    assert cliente.get(f"/api/public/{token}/estado").json()["evento"]["som_sorteio"] == "caca_niquel"
+
+
 def test_tema_mallory_claro_gira_numeros_sem_enviar_nomes(cliente, auth):
     event_id, _, unidades = montar_evento(participantes=10)
     token = _token_telao(event_id)

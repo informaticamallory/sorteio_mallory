@@ -253,16 +253,144 @@ export function agendarRevelacao(ctx: BaseAudioContext, destino: AudioNode, inic
   nota(ctx, destino, 1318.5, fanfarra + 0.55, 0.9, 0.1)
 }
 
+// ------------------------------------------------------------------ caca-niquel
+/** Som do sorteio escolhido em Configuracao. */
+export type SomSorteio = 'tambores' | 'caca_niquel'
+
+export function somDoEvento(valor: string | null | undefined): SomSorteio {
+  return valor === 'caca_niquel' ? 'caca_niquel' : 'tambores'
+}
+
+/** Um "tec" mecanico do rolo girando. */
+function tique(ctx: BaseAudioContext, destino: AudioNode, quando: number, volume: number): AudioScheduledSourceNode[] {
+  const fonte = ctx.createBufferSource()
+  fonte.buffer = ruido(ctx)
+  const faixa = ctx.createBiquadFilter()
+  faixa.type = 'bandpass'
+  faixa.frequency.value = 3200 + Math.random() * 600
+  faixa.Q.value = 2.5
+  fonte.connect(faixa).connect(envelope(ctx, quando, volume, 0.018)).connect(destino)
+  fonte.start(quando, Math.random() * 0.8, 0.03)
+  const estalo = ctx.createOscillator()
+  estalo.type = 'square'
+  estalo.frequency.setValueAtTime(1500 + Math.random() * 120, quando)
+  estalo.connect(envelope(ctx, quando, volume * 0.12, 0.012)).connect(destino)
+  estalo.start(quando)
+  estalo.stop(quando + 0.02)
+  return [fonte, estalo]
+}
+
+/** O "clac" de um rolo travando no digito: baque grave + estalo + brilho metalico. */
+function clac(ctx: BaseAudioContext, destino: AudioNode, quando: number): AudioScheduledSourceNode[] {
+  const baque = ctx.createOscillator()
+  baque.type = 'sine'
+  baque.frequency.setValueAtTime(150, quando)
+  baque.frequency.exponentialRampToValueAtTime(55, quando + 0.09)
+  baque.connect(envelope(ctx, quando, 0.55, 0.14)).connect(destino)
+  baque.start(quando)
+  baque.stop(quando + 0.16)
+  const estalo = ctx.createBufferSource()
+  estalo.buffer = ruido(ctx)
+  const grave = ctx.createBiquadFilter()
+  grave.type = 'lowpass'
+  grave.frequency.value = 1800
+  estalo.connect(grave).connect(envelope(ctx, quando, 0.5, 0.05)).connect(destino)
+  estalo.start(quando, Math.random() * 0.8, 0.07)
+  nota(ctx, destino, 2637, quando + 0.005, 0.09, 0.05)
+  return [baque, estalo]
+}
+
+/** Zumbido baixo do motor da maquina enquanto os rolos giram. */
+function zumbido(ctx: BaseAudioContext, destino: AudioNode, inicio: number, fim: number): AudioScheduledSourceNode {
+  const fonte = ctx.createBufferSource()
+  fonte.buffer = ruido(ctx)
+  fonte.loop = true
+  const faixa = ctx.createBiquadFilter()
+  faixa.type = 'bandpass'
+  faixa.frequency.value = 700
+  faixa.Q.value = 3
+  const ganho = ctx.createGain()
+  ganho.gain.setValueAtTime(SILENCIO, inicio)
+  ganho.gain.exponentialRampToValueAtTime(0.06, inicio + 0.2)
+  ganho.gain.setValueAtTime(0.06, Math.max(inicio + 0.2, fim - 0.3))
+  ganho.gain.exponentialRampToValueAtTime(SILENCIO, fim)
+  fonte.connect(faixa).connect(ganho).connect(destino)
+  fonte.start(inicio)
+  fonte.stop(fim + 0.05)
+  return fonte
+}
+
+const TIQUES_POR_SEGUNDO = 16
+
+/** Giro dos rolos: tec-tec continuo com o zumbido do motor. */
+export function agendarGiroCacaNiquel(
+  ctx: BaseAudioContext,
+  destino: AudioNode,
+  inicio: number,
+  segundos: number,
+): AudioScheduledSourceNode[] {
+  const fontes: AudioScheduledSourceNode[] = [zumbido(ctx, destino, inicio, inicio + segundos + 0.1)]
+  let t = 0
+  while (t < segundos - 0.02) {
+    fontes.push(...tique(ctx, destino, inicio + t, 0.35 * (0.8 + Math.random() * 0.4)))
+    t += (1 / TIQUES_POR_SEGUNDO) * (0.9 + Math.random() * 0.2)
+  }
+  return fontes
+}
+
 /**
- * Rufar de tambores durante a animacao do sorteio. Devolve uma funcao que
- * encerra o rufar (ao sair da tela de sorteio antes do fim).
+ * Parada dos rolos: o tec-tec desacelera e cada rolo da um "clac" quando trava
+ * (um a cada `intervaloS`, como na animacao). `jaPassouS`: reconexao no meio.
  */
-export function somRufar(duracaoMs: number): () => void {
+export function agendarParadaCacaNiquel(
+  ctx: BaseAudioContext,
+  destino: AudioNode,
+  inicio: number,
+  rolos: number,
+  intervaloS: number,
+  jaPassouS = 0,
+): AudioScheduledSourceNode[] {
+  const total = rolos * intervaloS
+  const fontes: AudioScheduledSourceNode[] = []
+  if (jaPassouS < total) fontes.push(zumbido(ctx, destino, inicio, inicio + total - jaPassouS))
+  let t = 0
+  while (t < total) {
+    if (t >= jaPassouS) {
+      const progresso = t / total
+      fontes.push(...tique(ctx, destino, inicio + t - jaPassouS, 0.3 * (1 - progresso * 0.5)))
+    }
+    t += 1 / TIQUES_POR_SEGUNDO / (1 - (t / total) * 0.6)
+  }
+  for (let i = 1; i <= rolos; i++) {
+    const quando = i * intervaloS - jaPassouS
+    if (quando >= 0) fontes.push(...clac(ctx, destino, inicio + quando))
+  }
+  return fontes
+}
+
+/** Vitoria no caca-niquel: arpejo de maquina, campainha e moedas. */
+export function agendarVitoriaCacaNiquel(ctx: BaseAudioContext, destino: AudioNode, inicio: number) {
+  ;[1046.5, 1318.5, 1568, 2093].forEach((frequencia, indice) =>
+    nota(ctx, destino, frequencia, inicio + indice * 0.07, 0.22, 0.1, 'square'),
+  )
+  const sino = inicio + 0.32
+  ;[1568, 3136, 4704].forEach((frequencia, indice) =>
+    nota(ctx, destino, frequencia, sino, 1.3 - indice * 0.3, 0.12 / (indice + 1), 'sine'),
+  )
+  let t = sino + 0.15
+  for (let i = 0; i < 16; i++) {
+    nota(ctx, destino, 3000 + Math.random() * 2200, t, 0.09, 0.05)
+    t += 0.05 + Math.random() * 0.04
+  }
+}
+
+/** Toca e devolve a funcao que interrompe (ao sair da tela antes do fim). */
+function tocarInterrompivel(agendar: (ctx: AudioContext, destino: AudioNode) => AudioScheduledSourceNode[]): () => void {
   const ctx = obterContexto()
   if (!ctx || !liberado) return () => {}
   const mestre = ctx.createGain()
   mestre.connect(ctx.destination)
-  const fontes = agendarRufar(ctx, mestre, ctx.currentTime + 0.03, Math.max(1, duracaoMs / 1000))
+  const fontes = agendar(ctx, mestre)
   return () => {
     const agora = ctx.currentTime
     mestre.gain.setTargetAtTime(0, agora, 0.03)
@@ -277,9 +405,55 @@ export function somRufar(duracaoMs: number): () => void {
   }
 }
 
-/** Bumbo, prato e fanfarra na revelacao do ganhador. */
-export function somVitoria() {
+/**
+ * Som durante a animacao do sorteio (rufar ou giro do caca-niquel). Devolve uma
+ * funcao que o encerra (ao sair da tela de sorteio antes do fim).
+ */
+export function somRufar(duracaoMs: number, som: SomSorteio = 'tambores'): () => void {
+  const segundos = Math.max(1, duracaoMs / 1000)
+  return tocarInterrompivel((ctx, destino) =>
+    som === 'caca_niquel'
+      ? agendarGiroCacaNiquel(ctx, destino, ctx.currentTime + 0.03, segundos)
+      : agendarRufar(ctx, destino, ctx.currentTime + 0.03, segundos),
+  )
+}
+
+/** Caca-niquel: o clac de cada rolo que para na revelacao (os tambores nao tem). */
+export function somParadaRolos(rolos: number, intervaloMs: number, jaPassouMs: number, som: SomSorteio): () => void {
+  if (som !== 'caca_niquel') return () => {}
+  return tocarInterrompivel((ctx, destino) =>
+    agendarParadaCacaNiquel(ctx, destino, ctx.currentTime + 0.02, rolos, intervaloMs / 1000, jaPassouMs / 1000),
+  )
+}
+
+/** Revelacao do ganhador: fanfarra dos tambores ou campainha e moedas. */
+export function somVitoria(som: SomSorteio = 'tambores') {
   const ctx = obterContexto()
   if (!ctx || !liberado) return
-  agendarRevelacao(ctx, ctx.destination, ctx.currentTime)
+  if (som === 'caca_niquel') agendarVitoriaCacaNiquel(ctx, ctx.destination, ctx.currentTime)
+  else agendarRevelacao(ctx, ctx.destination, ctx.currentTime)
+}
+
+/**
+ * Previa na Configuracao: giro curto, rolos parando e a vitoria. Libera o audio
+ * (precisa vir de um clique) e devolve a funcao que interrompe.
+ */
+export async function previaSom(som: SomSorteio, rolos = 4, intervaloMs = 350): Promise<() => void> {
+  if (!(await liberarAudio())) return () => {}
+  const giro = 2.5
+  const parada = rolos * (intervaloMs / 1000)
+  return tocarInterrompivel((ctx, destino) => {
+    const inicio = ctx.currentTime + 0.05
+    if (som === 'caca_niquel') {
+      const fontes = [
+        ...agendarGiroCacaNiquel(ctx, destino, inicio, giro),
+        ...agendarParadaCacaNiquel(ctx, destino, inicio + giro, rolos, intervaloMs / 1000),
+      ]
+      agendarVitoriaCacaNiquel(ctx, destino, inicio + giro + parada + 0.25)
+      return fontes
+    }
+    const fontes = agendarRufar(ctx, destino, inicio, giro)
+    agendarRevelacao(ctx, destino, inicio + giro + parada + 0.25)
+    return fontes
+  })
 }

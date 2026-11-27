@@ -1,10 +1,11 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { requisitar } from '../api'
 import PortalQrCode from '../componentes/PortalQrCode'
 import UploadImagem from '../componentes/UploadImagem'
 import { Aviso } from '../componentes/ui'
 import type { Evento } from '../types'
 import { usePainel } from './PainelLayout'
+import { previaSom, type SomSorteio } from '../som'
 import { PALETA_MALLORY } from './TelaoClaro'
 
 const FUSOS = [
@@ -40,6 +41,7 @@ type Formulario = Pick<
   | 'claro_cor_destaque'
   | 'claro_cor_texto'
   | 'telao_subtitulo'
+  | 'som_sorteio'
   | 'recepcao_publica_ativa'
   | 'autocadastro_ativo'
   | 'autocadastro_inicio'
@@ -96,6 +98,29 @@ export default function Configuracao() {
   const [salvando, setSalvando] = useState(false)
   const [mensagem, setMensagem] = useState('')
   const [erro, setErro] = useState('')
+  // Prévia do som: qual está tocando e como interromper.
+  const [ouvindo, setOuvindo] = useState<SomSorteio | null>(null)
+  const pararPrevia = useRef<(() => void) | null>(null)
+  const fimPrevia = useRef<number | null>(null)
+
+  function encerrarPrevia() {
+    pararPrevia.current?.()
+    pararPrevia.current = null
+    if (fimPrevia.current) window.clearTimeout(fimPrevia.current)
+    setOuvindo(null)
+  }
+
+  async function ouvir(som: SomSorteio) {
+    const mesmo = ouvindo === som
+    encerrarPrevia()
+    if (mesmo) return
+    setOuvindo(som)
+    pararPrevia.current = await previaSom(som)
+    // Giro (2,5 s) + rolos parando + vitória.
+    fimPrevia.current = window.setTimeout(() => setOuvindo(null), 6500)
+  }
+
+  useEffect(() => () => encerrarPrevia(), [])
 
   useEffect(() => {
     setForm({
@@ -120,6 +145,7 @@ export default function Configuracao() {
       claro_cor_destaque: evento.claro_cor_destaque ?? PALETA_MALLORY.destaque,
       claro_cor_texto: evento.claro_cor_texto ?? PALETA_MALLORY.texto,
       telao_subtitulo: evento.telao_subtitulo ?? '',
+      som_sorteio: evento.som_sorteio ?? 'tambores',
       recepcao_publica_ativa: evento.recepcao_publica_ativa,
       autocadastro_ativo: evento.autocadastro_ativo,
       autocadastro_inicio: evento.autocadastro_inicio,
@@ -366,6 +392,52 @@ export default function Configuracao() {
                 Cores, acima). Para os números girarem bem, deixe o suspense em pelo menos 2 segundos.
               </p>
             )}
+          </div>
+          <div className="sm:col-span-2">
+            <span className="rotulo">Som do sorteio</span>
+            <div className="grid gap-2 sm:grid-cols-2" role="radiogroup" aria-label="Som do sorteio">
+              {(
+                [
+                  ['tambores', 'Tambores', 'Rufar durante o giro; bumbo, prato e fanfarra na revelação.'],
+                  ['caca_niquel', 'Caça-níquel', 'Tec-tec dos rolos, um clac a cada rolo que para, campainha e moedas.'],
+                ] as const
+              ).map(([valor, titulo, descricao]) => {
+                const ativo = (form.som_sorteio ?? 'tambores') === valor
+                return (
+                  <div
+                    key={valor}
+                    className={`flex items-start gap-3 rounded-lg border p-3 ${
+                      ativo ? 'border-marca-400 bg-marca-50' : 'border-slate-200 hover:border-slate-300'
+                    }`}
+                  >
+                    <label className="flex flex-1 cursor-pointer gap-3">
+                      <input
+                        type="radio"
+                        name="som-sorteio"
+                        className="mt-1 accent-marca-600"
+                        checked={ativo}
+                        onChange={() => atualizar({ som_sorteio: valor })}
+                      />
+                      <span>
+                        <span className="block text-sm font-semibold text-slate-900">{titulo}</span>
+                        <span className="block text-xs text-slate-500">{descricao}</span>
+                      </span>
+                    </label>
+                    <button
+                      type="button"
+                      className="btn-neutro h-8 shrink-0 px-3 text-xs"
+                      onClick={() => void ouvir(valor)}
+                      aria-label={ouvindo === valor ? `Parar a prévia de ${titulo}` : `Ouvir ${titulo}`}
+                    >
+                      {ouvindo === valor ? 'Parar' : 'Ouvir'}
+                    </button>
+                  </div>
+                )
+              })}
+            </div>
+            <p className="mt-1 text-xs text-slate-500">
+              Vale para os dois visuais do telão. O som só toca com "Som ativado no telão" ligado.
+            </p>
           </div>
           <div>
             <label className="rotulo" htmlFor="cfg-duracao">

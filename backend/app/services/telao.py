@@ -82,6 +82,7 @@ def _evento_payload(evento: Event) -> dict:
             "texto": evento.claro_cor_texto,
         },
         "telao_subtitulo": evento.telao_subtitulo,
+        "som_sorteio": evento.som_sorteio or "tambores",
     }
 
 

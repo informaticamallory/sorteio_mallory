@@ -350,6 +350,8 @@ export interface Evento {
   telao_subtitulo?: string | null
   /** Evento de teste: oculto no portal do colaborador. */
   evento_teste?: boolean
+  /** Som do sorteio no telão. */
+  som_sorteio?: 'tambores' | 'caca_niquel'
   demo: boolean
   criado_em: string
 }
@@ -676,6 +678,8 @@ export interface TelaoEventoPayload {
   cores_claro?: { fundo: string; painel: string; destaque: string; texto: string }
   /** Texto ao lado da logo no telão claro (vazio: "Sorteios internos"). */
   telao_subtitulo?: string | null
+  /** Som do sorteio: rufar de tambores ou caça-níquel. */
+  som_sorteio?: 'tambores' | 'caca_niquel'
 }
 
 export type TemaTelao = 'classico' | 'mallory_claro'

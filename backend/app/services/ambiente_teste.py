@@ -75,6 +75,7 @@ CAMPOS_COPIADOS = (
     "claro_cor_destaque",
     "claro_cor_texto",
     "telao_subtitulo",
+    "som_sorteio",
 )
 
 
