@@ -44,19 +44,25 @@ export default function Casca({
 
   return (
     <div className="min-h-full bg-fundo lg:pl-60">
-      {/* Barra superior (celular e tablet) */}
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 bg-mallory-preto px-2 text-white lg:hidden">
+      {/* Barra superior (celular e tablet): menu, logo e o título da página na mesma linha. */}
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-2 overflow-hidden bg-mallory-preto px-2 text-white lg:hidden">
+        <CurvaMallory />
         <button
           type="button"
           onClick={() => setAberto(true)}
-          className="inline-flex h-9 w-9 items-center justify-center rounded-md text-grafite-300 hover:bg-white/10 hover:text-white"
+          className="relative inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-md text-grafite-300 hover:bg-white/10 hover:text-white"
           aria-label="Abrir menu"
         >
           <Icone nome="menu" className="h-5 w-5" />
         </button>
-        <Link to="/" className="shrink-0" title="Sorteios Mallory">
-          <LogoMallory className="h-10 w-auto" />
+        <Link to="/" className="relative shrink-0" title="Sorteios Mallory">
+          <LogoMallory className="h-9 w-auto sm:h-10" />
         </Link>
+        <span className="relative mx-1 h-8 w-px shrink-0 bg-mallory-laranja" aria-hidden="true" />
+        <div className="relative min-w-0 flex-1 pr-2">
+          <h1 className="truncate text-[15px] font-bold leading-tight text-white sm:text-lg">{titulo}</h1>
+          {subtitulo && <p className="truncate text-[11px] leading-tight text-white/75 sm:text-xs">{subtitulo}</p>}
+        </div>
       </header>
 
       {aberto && (
@@ -125,19 +131,16 @@ export default function Casca({
         <RodapeUsuario />
       </aside>
 
-      {/* Cabeçalho da página: preto com o detalhe curvo laranja (identidade Mallory). */}
-      <header className="relative overflow-hidden bg-mallory-preto text-white lg:flex lg:min-h-20 lg:items-center">
-        <svg
-          aria-hidden
-          className="pointer-events-none absolute bottom-0 right-0 h-full w-1/3 max-w-[420px]"
-          viewBox="0 0 520 80"
-          preserveAspectRatio="none"
-        >
-          <path d="M520 30 C 420 70, 300 78, 170 80 L 520 80 Z" fill="#E65300" opacity="0.9" />
-          <path d="M520 46 C 440 74, 360 80, 260 80 L 520 80 Z" fill="#F16425" />
-        </svg>
-        <div className="relative mx-auto flex w-full max-w-6xl flex-wrap items-end justify-between gap-3 px-4 py-4 sm:px-6">
-          <div className="min-w-0 pr-[18%] sm:pr-0">
+      {/* Cabeçalho da página: preto com o detalhe curvo laranja (identidade Mallory).
+          No celular e no tablet o título já está na barra de cima; aqui ficam só as ações. */}
+      <header
+        className={`relative overflow-hidden bg-mallory-preto text-white lg:flex lg:min-h-20 lg:items-center ${
+          acoes ? '' : 'hidden'
+        }`}
+      >
+        <CurvaMallory />
+        <div className="relative mx-auto flex w-full max-w-6xl flex-wrap items-end justify-between gap-3 px-4 py-3 sm:px-6 lg:py-4">
+          <div className="hidden min-w-0 lg:block">
             <h1 className="truncate text-xl font-bold leading-tight text-white">{titulo}</h1>
             {subtitulo && <p className="truncate text-[13px] text-white/75">{subtitulo}</p>}
           </div>
@@ -151,6 +154,21 @@ export default function Casca({
         <main>{children}</main>
       </div>
     </div>
+  )
+}
+
+/** Detalhe curvo laranja do canto direito (identidade Mallory). */
+function CurvaMallory() {
+  return (
+    <svg
+      aria-hidden
+      className="pointer-events-none absolute bottom-0 right-0 h-full w-1/3 max-w-[420px]"
+      viewBox="0 0 520 80"
+      preserveAspectRatio="none"
+    >
+      <path d="M520 30 C 420 70, 300 78, 170 80 L 520 80 Z" fill="#E65300" opacity="0.9" />
+      <path d="M520 46 C 440 74, 360 80, 260 80 L 520 80 Z" fill="#F16425" />
+    </svg>
   )
 }
 
