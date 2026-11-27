@@ -607,12 +607,37 @@ class EntregaLoteIn(BaseModel):
     @field_validator("foto_url")
     @classmethod
     def _foto(cls, v: str | None) -> str | None:
-        if not v:
-            return None
-        # So imagens gravadas pelo proprio sistema (nada de link externo).
-        if not re.fullmatch(r"/uploads/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp)", v):
-            raise ValueError("Foto da entrega inválida")
-        return v
+        return _foto_entrega(v)
+
+
+def _foto_entrega(v: str | None) -> str | None:
+    if not v:
+        return None
+    # So imagens gravadas pelo proprio sistema (nada de link externo).
+    if not re.fullmatch(r"/uploads/[A-Za-z0-9_.-]+\.(?:jpg|jpeg|png|webp)", v):
+        raise ValueError("Foto da entrega inválida")
+    return v
+
+
+class FotoEntregaIn(BaseModel):
+    """Foto tirada depois da entrega, ja enviada por /api/uploads/imagem."""
+
+    foto_url: str
+
+    @field_validator("foto_url")
+    @classmethod
+    def _foto(cls, v: str) -> str:
+        valida = _foto_entrega(v)
+        if valida is None:
+            raise ValueError("Envie a foto da entrega")
+        return valida
+
+
+class FotoEntregaOut(BaseModel):
+    sorteio_id: int
+    foto_url: str
+    foto_em: datetime
+    foto_por: str | None
 
 
 class EntregasResumoOut(BaseModel):
@@ -644,6 +669,8 @@ class PremiadoOut(BaseModel):
     entregue: bool
     entregue_em: datetime | None
     entregue_por: str | None
+    # Ha foto da entrega (tirada no balcao ou depois).
+    tem_foto_entrega: bool = False
 
 
 class ContagemSituacoesOut(BaseModel):
@@ -726,6 +753,10 @@ class PremioGanhoOut(BaseModel):
     entregue_por: str | None
     quantidade_premio: int | None = None
     sorteado_em: datetime | None = None
+    # So na Central de Entregas (equipe); o portal do colaborador nao recebe.
+    foto_entrega_url: str | None = None
+    foto_entrega_em: datetime | None = None
+    foto_entrega_por: str | None = None
 
 
 class ColaboradorRecepcaoOut(BaseModel):

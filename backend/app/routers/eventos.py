@@ -38,7 +38,7 @@ from ..schemas import (
 )
 from ..security import novo_token_telao
 from ..services.elegibilidade import participantes_elegiveis, resumo_regras
-from ..services import ambiente_teste
+from ..services import ambiente_teste, fotos_entrega
 from ..services.erros import RegraDeNegocio
 from ..services.telao import notificar_atualizacao
 
@@ -123,6 +123,8 @@ def excluir(
         "sorteios": sorteios,
         "notificacoes": db.scalar(select(func.count(Notificacao.id)).where(Notificacao.event_id == evento.id)) or 0,
     }
+    # Fotos das entregas (mostram a pessoa): os arquivos saem junto com o evento.
+    fotos = fotos_entrega.urls_do_evento(db, evento.id)
     # Auditoria preservada: os registros do evento perdem so o vinculo.
     db.execute(update(AuditLog).where(AuditLog.event_id == evento.id).values(event_id=None))
     if sorteios:
@@ -148,6 +150,7 @@ def excluir(
     db.flush()
     db.delete(evento)
     db.commit()
+    fotos_entrega.apagar_arquivos(fotos)
     return Response(status_code=status.HTTP_204_NO_CONTENT)
 
 
@@ -180,11 +183,14 @@ def recomecar_teste(
 ) -> dict:
     """Zera os sorteios de um EVENTO DE TESTE (so o admin) para ensaiar de novo."""
     try:
+        # Fotos das entregas do teste saem junto com os sorteios (mostram a pessoa).
+        fotos = fotos_entrega.urls_do_evento(db, evento.id) if evento.evento_teste else set()
         resultado = ambiente_teste.recomecar(db, evento, user)
     except RegraDeNegocio as exc:
         db.rollback()
         raise HTTPException(exc.status_code, exc.mensagem) from exc
     db.commit()
+    fotos_entrega.apagar_arquivos(fotos)
     notificar_atualizacao(db, evento)
     return resultado
 

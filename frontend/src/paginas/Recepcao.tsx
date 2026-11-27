@@ -106,6 +106,9 @@ export default function Recepcao() {
   const [aviso, setAviso] = useState('')
   const [atendimento, setAtendimento] = useState<Atendimento | null>(null)
   const [desfazendo, setDesfazendo] = useState<{ sorteio_id: number; premio: string; nome: string } | null>(null)
+  // Foto da entrega tirada depois (ou trocada) e a foto aberta em tamanho grande.
+  const [fotografando, setFotografando] = useState<{ sorteio_id: number; premio: string; nome: string; trocar: boolean } | null>(null)
+  const [vendoFoto, setVendoFoto] = useState<{ url: string; legenda: string } | null>(null)
   const [anulando, setAnulando] = useState<{
     id: number
     rodada: number
@@ -381,8 +384,45 @@ export default function Recepcao() {
                               Entregue por {p.entregue_por} em {formatar(p.entregue_em, evento.fuso_horario)}
                             </p>
                           )}
+                          {p.entregue && p.foto_entrega_url && (
+                            <p className="text-xs text-slate-500">
+                              Foto por {p.foto_entrega_por ?? '—'} em {formatar(p.foto_entrega_em ?? null, evento.fuso_horario)}
+                            </p>
+                          )}
                         </div>
+                        {p.entregue && p.foto_entrega_url && (
+                          <button
+                            type="button"
+                            className="h-12 w-12 shrink-0 overflow-hidden rounded-lg border-2 border-emerald-500"
+                            title="Ver a foto da entrega"
+                            onClick={() =>
+                              setVendoFoto({
+                                url: p.foto_entrega_url as string,
+                                legenda: `${p.premio_nome} · ${c.nome}`,
+                              })
+                            }
+                          >
+                            <img src={p.foto_entrega_url} alt="Foto da entrega" className="h-full w-full object-cover" />
+                          </button>
+                        )}
                         <Situacao entregue={p.entregue} />
+                        {p.entregue && podeEntregar && (
+                          <button
+                            type="button"
+                            className="btn-neutro h-8 px-3 text-xs"
+                            onClick={() =>
+                              setFotografando({
+                                sorteio_id: p.sorteio_id,
+                                premio: p.premio_nome,
+                                nome: c.nome,
+                                trocar: !!p.foto_entrega_url,
+                              })
+                            }
+                          >
+                            <Icone nome="camera" className="h-4 w-4" />
+                            {p.foto_entrega_url ? 'Trocar foto' : 'Foto da entrega'}
+                          </button>
+                        )}
                         {p.entregue
                           ? podeDesfazer && (
                               <button
@@ -482,6 +522,23 @@ export default function Recepcao() {
           await aposOperacao(texto)
         }}
       />
+      <ModalFotoEntrega
+        alvo={fotografando}
+        base={base}
+        aoFechar={() => setFotografando(null)}
+        aoConcluir={async (texto) => {
+          setFotografando(null)
+          await aposOperacao(texto)
+        }}
+      />
+      <Modal titulo="Foto da entrega" aberto={vendoFoto !== null} aoFechar={() => setVendoFoto(null)}>
+        {vendoFoto && (
+          <div className="space-y-2">
+            <img src={vendoFoto.url} alt="Foto da entrega" className="mx-auto max-h-[70vh] rounded-lg object-contain" />
+            <p className="text-center text-sm text-slate-600">{vendoFoto.legenda}</p>
+          </div>
+        )}
+      </Modal>
       <ModalAnulacao
         aberto={anulando !== null}
         sorteio={anulando}
@@ -746,6 +803,104 @@ function ModalDesfazer({
           </button>
         </div>
       </form>
+    </Modal>
+  )
+}
+
+/** Foto tirada depois da entrega (ou troca da atual). Fica no registro da entrega. */
+function ModalFotoEntrega({
+  alvo,
+  base,
+  aoFechar,
+  aoConcluir,
+}: {
+  alvo: { sorteio_id: number; premio: string; nome: string; trocar: boolean } | null
+  base: string
+  aoFechar: () => void
+  aoConcluir: (mensagem: string) => Promise<void>
+}) {
+  const [foto, setFoto] = useState<File | null>(null)
+  const [previa, setPrevia] = useState<string | null>(null)
+  const [erro, setErro] = useState('')
+  const [enviando, setEnviando] = useState(false)
+
+  useEffect(() => {
+    setFoto(null)
+    setErro('')
+  }, [alvo])
+
+  useEffect(() => {
+    if (!foto) {
+      setPrevia(null)
+      return
+    }
+    const url = URL.createObjectURL(foto)
+    setPrevia(url)
+    return () => URL.revokeObjectURL(url)
+  }, [foto])
+
+  if (!alvo) return null
+
+  async function salvar() {
+    if (!alvo || !foto) return
+    setEnviando(true)
+    setErro('')
+    try {
+      const { url } = await enviarArquivo<{ url: string }>('/api/uploads/imagem', foto)
+      await requisitar(`${base}/entregas/${alvo.sorteio_id}/foto`, { metodo: 'POST', corpo: { foto_url: url } })
+      await aoConcluir(`Foto da entrega de ${alvo.premio} para ${alvo.nome} registrada.`)
+    } catch (e) {
+      setErro(mensagem(e, 'Falha ao registrar a foto'))
+    } finally {
+      setEnviando(false)
+    }
+  }
+
+  const escolher = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setFoto(e.target.files?.[0] ?? null)
+    e.target.value = ''
+  }
+
+  return (
+    <Modal titulo={alvo.trocar ? 'Trocar foto da entrega' : 'Foto da entrega'} aberto aoFechar={aoFechar}>
+      <div className="space-y-4">
+        <p className="text-sm text-slate-600">
+          {alvo.premio} · <strong className="text-slate-900">{alvo.nome}</strong>
+        </p>
+        {previa ? (
+          <div className="space-y-2 text-center">
+            <img src={previa} alt="Prévia da foto" className="mx-auto max-h-72 rounded-lg border border-slate-200 object-contain" />
+            <button type="button" className="text-sm font-medium text-rose-700 underline" onClick={() => setFoto(null)}>
+              Tirar outra
+            </button>
+          </div>
+        ) : (
+          <div className="space-y-2 rounded-xl border-2 border-dashed border-slate-300 p-4 text-center">
+            <Icone nome="camera" className="mx-auto h-8 w-8 text-slate-400" />
+            <label className="btn-primario flex w-full cursor-pointer justify-center">
+              Abrir câmera
+              <input type="file" accept="image/*" capture="environment" className="sr-only" onChange={escolher} />
+            </label>
+            <label className="btn-neutro flex w-full cursor-pointer justify-center">
+              Escolher da galeria
+              <input type="file" accept="image/*" className="sr-only" onChange={escolher} />
+            </label>
+          </div>
+        )}
+        <p className="text-xs text-slate-500">
+          JPG ou PNG, até 5 MB. Fica registrada com quem tirou e quando
+          {alvo.trocar ? '; a foto anterior continua no registro.' : '.'}
+        </p>
+        {erro && <Aviso tipo="erro">{erro}</Aviso>}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn-neutro" onClick={aoFechar}>
+            Cancelar
+          </button>
+          <button type="button" className="btn-primario" disabled={!foto || enviando} onClick={() => void salvar()}>
+            {enviando ? 'Salvando...' : 'Salvar foto'}
+          </button>
+        </div>
+      </div>
     </Modal>
   )
 }
@@ -1075,6 +1230,12 @@ function LinhaPremiado({
         <span className="hidden text-sm text-slate-600 lg:block">{bloco(item.bloco_numero)}</span>
         <span className="hidden text-sm tabular-nums text-slate-600 lg:block">{quando}</span>
         <span className="flex items-center justify-end gap-1">
+          {item.entregue && item.tem_foto_entrega && (
+            <span title="Entrega com foto" className="text-emerald-600">
+              <Icone nome="camera" className="h-4 w-4" />
+              <span className="sr-only">Entrega com foto</span>
+            </span>
+          )}
           <Situacao entregue={item.entregue} />
           <Icone nome="avancar" className="hidden h-4 w-4 text-slate-300 lg:block" />
         </span>

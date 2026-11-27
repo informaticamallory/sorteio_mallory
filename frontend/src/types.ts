@@ -75,6 +75,10 @@ export interface PremioGanho {
   entregue_por: string | null
   quantidade_premio?: number | null
   sorteado_em?: string | null
+  /** Só na Central de Entregas: foto atual da entrega (no balcão ou depois). */
+  foto_entrega_url?: string | null
+  foto_entrega_em?: string | null
+  foto_entrega_por?: string | null
 }
 
 export interface ColaboradorRecepcao {
@@ -116,6 +120,7 @@ export interface Premiado {
   entregue: boolean
   entregue_em: string | null
   entregue_por: string | null
+  tem_foto_entrega?: boolean
 }
 
 /** Lista da Central de Entregas: inclui quantos itens cada aba teria. */

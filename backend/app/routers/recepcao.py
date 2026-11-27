@@ -31,6 +31,8 @@ from ..schemas import (
     EntregaLoteIn,
     EntregasResumoOut,
     FiltrosEntregasOut,
+    FotoEntregaIn,
+    FotoEntregaOut,
     HistoricoEntregaOut,
     OpcaoFiltroOut,
     PaginaHistoricoEntregasOut,
@@ -39,6 +41,7 @@ from ..schemas import (
     PremioGanhoOut,
 )
 from ..services.consultas import condicao_busca_participante, premios_ganhos
+from ..services import fotos_entrega
 from ..services.erros import RegraDeNegocio
 from ..services.notificacoes import avisar_ganhador
 from ..services.sorteio import registrar_entrega
@@ -94,6 +97,7 @@ def buscar(
         .limit(LIMITE_BUSCA)
     ).all()
     premios = premios_ganhos(db, [p.id for p in participantes])
+    _com_fotos(db, evento, premios)
     saida = [
         ColaboradorRecepcaoOut(
             id=p.id,
@@ -112,6 +116,41 @@ def buscar(
     # Ganhadores primeiro; quem tem pendencia antes de quem ja retirou tudo.
     saida.sort(key=lambda c: (not c.premios, all(x.entregue for x in c.premios) if c.premios else True))
     return [c for c in saida if c.premios] if somente_ganhadores else saida
+
+
+def _com_fotos(db: Session, evento: Event, premios: dict[int, list[dict]]) -> None:
+    """Acrescenta a foto atual da entrega a cada premio (so para a equipe)."""
+    ids = [item["sorteio_id"] for itens in premios.values() for item in itens if item["entregue"]]
+    if not ids:
+        return
+    sorteios = db.scalars(select(Draw).where(Draw.id.in_(ids))).all()
+    fotos = fotos_entrega.fotos_atuais(db, evento.id, list(sorteios))
+    for itens in premios.values():
+        for item in itens:
+            foto = fotos.get(item["sorteio_id"])
+            if foto:
+                item.update(foto_entrega_url=foto["url"], foto_entrega_em=foto["em"], foto_entrega_por=foto["por"])
+
+
+@router.post("/entregas/{draw_id}/foto", response_model=FotoEntregaOut)
+def foto_da_entrega(
+    draw_id: int,
+    dados: FotoEntregaIn,
+    evento: Event = Depends(evento_atual),
+    db: Session = Depends(get_db),
+    user: User = Depends(ENTREGAR),
+) -> FotoEntregaOut:
+    """Foto tirada depois da entrega (ou troca). A anterior fica na auditoria."""
+    sorteio = db.get(Draw, draw_id)
+    if sorteio is None or sorteio.event_id != evento.id:
+        raise HTTPException(status.HTTP_404_NOT_FOUND, "Resultado não encontrado neste evento")
+    try:
+        foto = fotos_entrega.registrar_foto(db, sorteio, dados.foto_url, user)
+        db.commit()
+    except RegraDeNegocio as exc:
+        db.rollback()
+        raise HTTPException(exc.status_code, exc.mensagem) from exc
+    return FotoEntregaOut(sorteio_id=sorteio.id, foto_url=foto["url"], foto_em=foto["em"], foto_por=foto["por"])
 
 
 # ------------------------------------------------------------------ indicadores
@@ -249,6 +288,7 @@ def premiados(
     total = contagem[situacao]
     ordem = (Draw.entregue_em.desc(),) if situacao == "entregues" else (Participant.nome_busca, Draw.rodada)
     linhas = db.execute(base.order_by(*ordem).offset((pagina - 1) * por_pagina).limit(por_pagina)).all()
+    com_foto = fotos_entrega.fotos_atuais(db, evento.id, [linha[0] for linha in linhas])
     return PaginaPremiadosOut(
         itens=[
             PremiadoOut(
@@ -270,6 +310,7 @@ def premiados(
                 entregue=d.entregue,
                 entregue_em=d.entregue_em,
                 entregue_por=quem.nome if quem else None,
+                tem_foto_entrega=d.id in com_foto,
             )
             for d, p, u, pr, b, quem in linhas
         ],

@@ -122,6 +122,7 @@ MATRIZ: dict[tuple[str, str], set[str]] = {
     ("GET", f"{E}/recepcao/filtros"): {A, O, R, N},
     ("GET", f"{E}/recepcao/premiados"): {A, O, R, N},
     ("POST", f"{E}/recepcao/entregar"): {A, O, R, N},
+    ("POST", f"{E}/recepcao/entregas/{{draw_id}}/foto"): {A, O, R, N},
     ("GET", f"{E}/recepcao/historico"): {A, O, R, N},
     ("GET", f"{E}/recepcao/historico/export.csv"): {A, O},
     # credenciamento (admin, RH e Recepcao)
