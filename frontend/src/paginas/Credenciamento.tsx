@@ -9,6 +9,89 @@ import type {
 } from '../types'
 import { usePainel } from './PainelLayout'
 import Icone from '../componentes/Icone'
+import PortalQrCode from '../componentes/PortalQrCode'
+
+/**
+ * Cadastro pelo celular numa linha só (situação, link, Copiar link). O QR Code
+ * abre ao clicar, para quem pode gerá-lo (Admin e Organizador).
+ */
+function CadastroPeloCelular() {
+  const { evento } = usePainel()
+  const { pode } = useAuth()
+  const [aberto, setAberto] = useState(false)
+  const [copiado, setCopiado] = useState(false)
+  const link = `${window.location.origin}/cadastro/${evento.id}`
+  const linkCurto = link.replace(/^https?:\/\//, '')
+  const podeQr = pode('configurar_evento')
+
+  const agora = Date.now()
+  const antes = evento.autocadastro_inicio != null && agora < new Date(evento.autocadastro_inicio).getTime()
+  const depois = evento.autocadastro_fim != null && agora > new Date(evento.autocadastro_fim).getTime()
+  const situacao = !evento.autocadastro_ativo
+    ? { rotulo: 'Desligado', classe: 'bg-slate-100 text-slate-600' }
+    : antes || depois
+      ? { rotulo: 'Fora do período', classe: 'bg-amber-50 text-amber-800' }
+      : { rotulo: 'Aberto', classe: 'bg-emerald-50 text-emerald-700' }
+
+  async function copiar() {
+    try {
+      await navigator.clipboard.writeText(link)
+      setCopiado(true)
+      setTimeout(() => setCopiado(false), 2000)
+    } catch {
+      window.prompt('Copie o link do cadastro:', link)
+    }
+  }
+
+  return (
+    <section className="cartao px-4 py-2.5">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+        <Icone nome="celular" className="h-5 w-5 shrink-0 text-mallory-laranja" />
+        <span className="text-sm font-semibold text-slate-900">Cadastro pelo celular</span>
+        <span className={`etiqueta ${situacao.classe}`}>{situacao.rotulo}</span>
+        {evento.autocadastro_ativo ? (
+          <span className="min-w-0 flex-1 truncate font-mono text-xs text-slate-500" title={link}>
+            {linkCurto}
+          </span>
+        ) : (
+          <span className="min-w-0 flex-1 text-xs text-amber-800">
+            {podeQr ? 'Ative em Configuração.' : 'Peça a um administrador para ativar.'}
+          </span>
+        )}
+        <div className="flex gap-2">
+          {evento.autocadastro_ativo && (
+            <button type="button" className="btn-neutro h-8 px-3 text-xs" onClick={() => void copiar()}>
+              <Icone nome="copiar" className="h-4 w-4" />
+              {copiado ? 'Copiado!' : 'Copiar link'}
+            </button>
+          )}
+          {podeQr && (
+            <button
+              type="button"
+              className="btn-neutro h-8 px-3 text-xs"
+              aria-expanded={aberto}
+              onClick={() => setAberto((v) => !v)}
+            >
+              <Icone nome="scanner" className="h-4 w-4" />
+              QR Code
+              <Icone nome={aberto ? 'acima' : 'abaixo'} className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+      {aberto && podeQr && (
+        <div className="mt-3 space-y-2 border-t border-slate-100 pt-3">
+          <PortalQrCode eventoId={evento.id} eventoNome={evento.nome} compacto />
+          <p className="text-xs text-slate-500">
+            O colaborador informa matrícula, data de nascimento e os 5 primeiros dígitos do CPF. O cadastro não
+            confirma presença nem registra pulseira: isso é feito no check-in. Só vale o primeiro cadastro; para
+            refazer, um administrador usa “Liberar novo cadastro” depois de conferir o crachá.
+          </p>
+        </div>
+      )}
+    </section>
+  )
+}
 
 const SITUACOES = [
   { valor: 'todos', rotulo: 'Todos' },
@@ -77,29 +160,9 @@ export default function Credenciamento() {
   // Equipe: só confirma e desfaz presença. Liberar novo cadastro é do admin.
   const auxilia = pode('auxiliar_credenciamento')
   const administra = pode('administrar_credenciamento')
-  const linkCadastro = `${window.location.origin}/cadastro/${evento.id}`
-
   return (
     <div className="space-y-4">
-      <section className="cartao flex flex-wrap items-center gap-3 p-4">
-        <div className="min-w-0 flex-1">
-          <p className="text-sm font-semibold text-slate-900">Autocadastro pelo celular</p>
-          {evento.autocadastro_ativo ? (
-            <p className="text-sm text-slate-600">
-              Aberto em <span className="break-all font-mono text-marca-700">{linkCadastro}</span>
-              {evento.autocadastro_confirma_presenca ? ' · confirma a presença ao concluir' : ''}
-            </p>
-          ) : (
-            <p className="text-sm text-amber-800">
-              Desligado. {pode('configurar_evento') ?'Ative em Configuração.' : 'Peça a um administrador para ativar.'}
-            </p>
-          )}
-          <p className="mt-1 text-xs text-slate-500">
-            O colaborador informa matrícula, nome e sobrenome, pulseira, foto e senha. Só vale o
-            primeiro cadastro: para refazer, um administrador usa “Liberar novo cadastro” depois de conferir o crachá.
-          </p>
-        </div>
-      </section>
+      <CadastroPeloCelular />
 
       {resumo && (
         <section className="cartao grid grid-cols-2 divide-borda sm:grid-cols-3 lg:grid-cols-6 lg:divide-x">

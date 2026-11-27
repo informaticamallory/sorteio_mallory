@@ -3,8 +3,20 @@ import { lerBlob, requisitar } from '../api'
 import type { PortalSituacao } from '../types'
 import { Aviso } from './ui'
 
-/** Link e QR Code do cadastro pelo celular (Portal do Colaborador). */
-export default function PortalQrCode({ eventoId, eventoNome }: { eventoId: number; eventoNome: string }) {
+/**
+ * Link e QR Code do cadastro pelo celular (Portal do Colaborador).
+ * `compacto`: sem a situação, o campo do link e o "Copiar link" (quem usa já
+ * mostra isso numa linha própria, como o Credenciamento).
+ */
+export default function PortalQrCode({
+  eventoId,
+  eventoNome,
+  compacto = false,
+}: {
+  eventoId: number
+  eventoNome: string
+  compacto?: boolean
+}) {
   const [situacao, setSituacao] = useState<PortalSituacao | null>(null)
   const [qr, setQr] = useState<string | null>(null)
   const [erro, setErro] = useState('')
@@ -112,21 +124,27 @@ export default function PortalQrCode({ eventoId, eventoNome }: { eventoId: numbe
           )}
         </div>
         <div className="min-w-0 flex-1 space-y-2">
-          <p className="text-sm">
-            Situação:{' '}
-            {situacao.aberto ? (
-              <span className="etiqueta bg-emerald-50 text-emerald-700">Cadastro aberto</span>
-            ) : situacao.ativo ? (
-              <span className="etiqueta bg-amber-50 text-amber-800">Fora do período</span>
-            ) : (
-              <span className="etiqueta bg-slate-100 text-slate-600">Cadastro desativado</span>
-            )}
-          </p>
-          <input className="campo font-mono text-xs" readOnly value={situacao.url_cadastro} aria-label="Link do cadastro" />
+          {!compacto && (
+            <>
+              <p className="text-sm">
+                Situação:{' '}
+                {situacao.aberto ? (
+                  <span className="etiqueta bg-emerald-50 text-emerald-700">Cadastro aberto</span>
+                ) : situacao.ativo ? (
+                  <span className="etiqueta bg-amber-50 text-amber-800">Fora do período</span>
+                ) : (
+                  <span className="etiqueta bg-slate-100 text-slate-600">Cadastro desativado</span>
+                )}
+              </p>
+              <input className="campo font-mono text-xs" readOnly value={situacao.url_cadastro} aria-label="Link do cadastro" />
+            </>
+          )}
           <div className="flex flex-wrap gap-2">
-            <button type="button" className="btn-neutro" onClick={() => void copiar()}>
-              {copiado ? 'Copiado!' : 'Copiar link'}
-            </button>
+            {!compacto && (
+              <button type="button" className="btn-neutro" onClick={() => void copiar()}>
+                {copiado ? 'Copiado!' : 'Copiar link'}
+              </button>
+            )}
             <button type="button" className="btn-neutro" onClick={baixar} disabled={!qr}>
               Baixar PNG
             </button>
