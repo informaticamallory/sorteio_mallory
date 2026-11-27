@@ -47,7 +47,8 @@ def _evento(db: Session, event_id: int) -> Event:
     continua marcando presenca pelo Credenciamento.
     """
     evento = db.get(Event, event_id)
-    if evento is None:
+    # Evento de teste e so do admin: a Recepcao sem login nunca o mostra.
+    if evento is None or evento.evento_teste:
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Evento não encontrado")
     if not evento.recepcao_publica_ativa:
         raise HTTPException(status.HTTP_403_FORBIDDEN, MENSAGEM_FECHADA)
@@ -97,7 +98,7 @@ def eventos(db: Session = Depends(get_db)) -> list[Event]:
     return list(
         db.scalars(
             select(Event)
-            .where(Event.recepcao_publica_ativa.is_(True))
+            .where(Event.recepcao_publica_ativa.is_(True), Event.evento_teste.is_(False))
             .order_by(Event.demo, Event.criado_em.desc())
         ).all()
     )

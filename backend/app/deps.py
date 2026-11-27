@@ -100,12 +100,18 @@ def exigir_papel(*papeis: Papel) -> Callable[..., User]:
 usuario_interno = exigir_papel(*PAPEIS_INTERNOS)
 
 
+def ve_evento_de_teste(user: User) -> bool:
+    """Evento de teste (e o ambiente de teste) e so do administrador."""
+    return user.papel == Papel.ADMIN.value
+
+
 def evento_atual(
     event_id: int = Path(..., description="ID do evento"),
     db: Session = Depends(get_db),
-    _: User = Depends(usuario_interno),
+    user: User = Depends(usuario_interno),
 ) -> Event:
     evento = db.get(Event, event_id)
-    if evento is None:
+    # Evento de teste: para os outros perfis ele nao existe (mesma resposta).
+    if evento is None or (evento.evento_teste and not ve_evento_de_teste(user)):
         raise HTTPException(status.HTTP_404_NOT_FOUND, "Evento não encontrado")
     return evento

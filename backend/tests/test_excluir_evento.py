@@ -81,12 +81,12 @@ def test_evento_de_teste_com_sorteios_e_apagado_pelo_admin_com_tudo_dele(cliente
     resposta = _apagar(cliente, auth, event_id, nome)
     assert resposta.status_code == 409 and "Confirme" in resposta.json()["detail"]
 
-    # Organizador - RH nunca apaga.
+    # Organizador - RH nunca apaga (e o evento de teste nem existe para ele).
     organizador = cabecalho(conta("ORGANIZADOR", login="rh-apaga-teste"))
     resposta = cliente.request(
         "DELETE", f"/api/events/{event_id}", json={"nome_confirmacao": nome, "apagar_sorteios": True}, headers=organizador
     )
-    assert resposta.status_code == 403
+    assert resposta.status_code in (403, 404)
 
     resposta = cliente.request(
         "DELETE", f"/api/events/{event_id}", json={"nome_confirmacao": nome, "apagar_sorteios": True}, headers=auth

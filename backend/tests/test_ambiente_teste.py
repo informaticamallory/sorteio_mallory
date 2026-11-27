@@ -73,6 +73,31 @@ def test_copia_de_teste_anonimizada_e_zerada_sem_mexer_no_real(cliente, auth):
     assert cliente.post(_api(copia["id"], "/ambiente-teste"), headers=auth).status_code == 409
 
 
+def test_evento_de_teste_so_aparece_para_o_admin(cliente, auth):
+    real_id, _blocos = _evento_real_com_sorteio(cliente, auth)
+    copia_id = cliente.post(_api(real_id, "/ambiente-teste"), headers=auth).json()["id"]
+    with session_scope() as db:
+        db.get(Event, copia_id).recepcao_publica_ativa = True
+        db.get(Event, real_id).recepcao_publica_ativa = True
+
+    admin_ve = {e["id"] for e in cliente.get("/api/events", headers=auth).json()}
+    assert {real_id, copia_id} <= admin_ve
+    assert cliente.get(f"/api/events/{copia_id}", headers=auth).status_code == 200
+
+    for papel in ("ORGANIZADOR", "RECEPCAO", "SORTEIO", "ENTREGAS"):
+        equipe = cabecalho(conta(papel, login=f"so-real-{papel.lower()}"))
+        ids = {e["id"] for e in cliente.get("/api/events", headers=equipe).json()}
+        assert real_id in ids and copia_id not in ids, papel
+        # Pelo numero do evento tambem nao entra (mesma resposta de inexistente).
+        assert cliente.get(f"/api/events/{copia_id}", headers=equipe).status_code == 404, papel
+        assert cliente.get(f"/api/events/{copia_id}/recepcao/resumo", headers=equipe).status_code in (403, 404), papel
+
+    # Recepcao sem login: o teste nao aparece nem pelo numero.
+    publicos = {e["id"] for e in cliente.get("/api/recepcao/eventos").json()}
+    assert real_id in publicos and copia_id not in publicos
+    assert cliente.post(f"/api/recepcao/{copia_id}/localizar", json={"matricula": "00001"}).status_code == 404
+
+
 def test_sortear_na_copia_e_recomecar_do_zero(cliente, auth):
     real_id, _blocos = _evento_real_com_sorteio(cliente, auth)
     copia_id = cliente.post(_api(real_id, "/ambiente-teste"), headers=auth).json()["id"]
@@ -93,7 +118,8 @@ def test_sortear_na_copia_e_recomecar_do_zero(cliente, auth):
     # Recomecar so em evento de teste; nunca no real.
     assert cliente.post(_api(real_id, "/recomecar-teste"), headers=auth).status_code == 409
     rh = cabecalho(conta("ORGANIZADOR", login="rh-recomeca"))
-    assert cliente.post(_api(copia_id, "/recomecar-teste"), headers=rh).status_code == 403
+    # Para o RH o evento de teste nem existe.
+    assert cliente.post(_api(copia_id, "/recomecar-teste"), headers=rh).status_code == 404
     resposta = cliente.post(_api(copia_id, "/recomecar-teste"), headers=auth)
     assert resposta.status_code == 200 and resposta.json() == {"sorteios_apagados": 1}
 

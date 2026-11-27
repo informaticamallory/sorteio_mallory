@@ -7,7 +7,7 @@ from sqlalchemy import delete, func, select, update
 from sqlalchemy.orm import Session
 
 from ..database import get_db
-from ..deps import evento_atual, exigir_permissao, requer
+from ..deps import evento_atual, exigir_permissao, requer, usuario_interno, ve_evento_de_teste
 from ..permissoes import Permissao, tem_permissao
 from ..models import (
     AuditLog,
@@ -57,8 +57,12 @@ CAMPOS_COR = ("cor_fundo", "cor_primaria", "cor_texto", "cor_destaque", *CAMPOS_
 
 
 @router.get("", response_model=list[EventoOut], dependencies=VISUALIZAR)
-def listar(db: Session = Depends(get_db)) -> list[Event]:
-    return list(db.scalars(select(Event).order_by(Event.criado_em.desc())).all())
+def listar(db: Session = Depends(get_db), user: User = Depends(usuario_interno)) -> list[Event]:
+    consulta = select(Event).order_by(Event.criado_em.desc())
+    if not ve_evento_de_teste(user):
+        # Evento de teste (e o ambiente de teste) so aparece para o admin.
+        consulta = consulta.where(Event.evento_teste.is_(False))
+    return list(db.scalars(consulta).all())
 
 
 @router.post("", response_model=EventoOut, status_code=status.HTTP_201_CREATED)
